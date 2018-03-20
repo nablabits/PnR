@@ -1,4 +1,3 @@
-"""New comment added"""
 import uuid
 import tarfile
 import os
