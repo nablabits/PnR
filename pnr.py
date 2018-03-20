@@ -588,9 +588,9 @@ class Compress(object):
         name = name[0:7] + '.bak.tar.gz'
 
         # Now, create the file
-        os.chdir('/home/davif/programak')
+        os.chdir('/home/davif/')
         tar = tarfile.open(name, 'w:gz')
-        file_list = ('web.info', 'python')
+        file_list = ('git', 'programs', 'dev')
 
         for i in file_list:
             tar.add(i)
@@ -599,7 +599,7 @@ class Compress(object):
 
     def Move(self):
         """Move the backup tarball to the aux device."""
-        org = '/home/davif/programak/'
+        org = '/home/davif/'
         dst = '/media/davif/backup/'  # USB stick should mount auto here
 
         checkdir = os.path.isdir(dst)
