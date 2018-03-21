@@ -592,7 +592,7 @@ class Compress(object):
         file_list = ('git', 'programs/python', 'dev')
 
         for i in file_list:
-            checkfile = os.path.isfile(i)
+            checkfile = os.path.isdir(i)
             if checkfile is True:
                 tar.add(i)
         tar.close
