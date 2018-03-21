@@ -589,12 +589,14 @@ class Compress(object):
         # Now, create the file
         os.chdir('/home/davif/')
         tar = tarfile.open(name, 'w:gz')
-        file_list = ('git', 'programs', 'dev')
+        file_list = ('git', 'programs/python', 'dev')
 
         for i in file_list:
-            tar.add(i)
+            checkfile = os.path.isfile(i)
+            if checkfile is True:
+                tar.add(i)
         tar.close
-        print('Tarball created ok!')
+        input('Tarball created ok!, insert an usb stick & hit any key')
 
     def Move(self):
         """Move the backup tarball to the aux device."""
