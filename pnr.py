@@ -581,10 +581,12 @@ class Compress(object):
         """Create a backup tarball."""
         print('Tarbal creation start...')
 
-        # Set a random name for the file (.bak for backup)
-        get_uuid = uuid.uuid4()
-        name = str(get_uuid.int)
-        name = name[0:7] + '.bak.tar.gz'
+        # Set a random name for the file (.bak for backup) [deprecated]
+        # get_uuid = uuid.uuid4()
+        # name = str(get_uuid.int)
+        # name = name[0:7] + '.bak.tar.gz'
+        now = datetime.now()
+        name = str(now.date()) + str(now.hour) + str(now.min) + '.bak.tar.gz'
 
         # Now, create the file
         os.chdir('/home/davif/')
