@@ -148,7 +148,8 @@ class LastEntries:
         comments = entry.details
         if not comments:
             comments = 'No comments'
-        entry_str = (start + ',(' + diff + 'h) ' + project + ': ' + comments)
+        entry_str = (start[11:16] + '; (' + diff + 'h) ' +
+                     project + ': ' + comments)
         return entry_str
 
     def OutputToday(self):
@@ -586,7 +587,8 @@ class Compress(object):
         # name = str(get_uuid.int)
         # name = name[0:7] + '.bak.tar.gz'
         now = datetime.now()
-        name = str(now.date()) + str(now.hour) + str(now.min) + '.bak.tar.gz'
+        name = (str(now.date()) + '-' + str(now.hour) + str(now.minute) +
+                '.tar.gz')
 
         # Now, create the file
         os.chdir('/home/davif/')
