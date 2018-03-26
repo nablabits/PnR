@@ -369,6 +369,8 @@ class DataQueriesYear:
     # BuildUp Hours this year query
     bu_data = db.query("SELECT * FROM work WHERE project " +
                        "BETWEEN 19 AND 24 ORDER BY datetime(started) ASC")
+    bu_coredata = db.query("SELECT * FROM work WHERE project IN (" +
+                       "19, 20) ORDER BY datetime(started) ASC")
 
     # OpK Hours this year query & OpK.Tries alone
     opk_data = db.query("SELECT * FROM work WHERE project BETWEEN 26 AND 30")
@@ -433,6 +435,7 @@ class YearOutputs:
     def BuTarget(self, bu, tt):
         """Calculate the hours over/under the goal."""
         goal = 20 * tt / 100
+        bu =  bu * tt / 100
         diff = round(bu - goal, 2)
         if diff > 0:
             output = '+' + str(abs(diff)) + 'h over goal'
@@ -530,6 +533,7 @@ class YearOutputs:
         # Absolute times
         df = self.yearqueries
         bu = self.SumTimes(df.bu_data)
+        bu_core = self.SumTimes(df.bu_coredata)
         bu_hi = self.SumTimes(df.qlt_hi_data)
         bu_mid = self.SumTimes(df.qlt_mid_data)
         bu_lo = self.SumTimes(df.qlt_lo_data)
@@ -547,7 +551,11 @@ class YearOutputs:
         opk_tries_perc = self.OpKPerc(opk_tries)
 
         # Bu target
-        bu_goal = self.BuTarget(bu, tt)
+        bu_goal = self.BuTarget(bu_perc, tt)
+
+        # Bu_core range
+        week = date.today().isocalendar()[1]
+        corerange = (week * 18, week * 20)
 
         # since current year hours discount the sleep time
         corr = 1 - st / (self.YearCurrentHours() + st)
@@ -569,6 +577,7 @@ class YearOutputs:
                    str(bu_mid_perc) + '% mid, ' +
                    str(bu_lo_perc) + '% lo.'
                    ),
+                  ('  Core Range: ' + str(bu_core) + str(corerange)),
                   ('  OpK: ' + data_str(opk_perc, opk)),
                   ('  OpK ratio: ' + str(opk_tries_perc) + '%'),
                   )
