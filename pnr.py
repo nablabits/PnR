@@ -627,7 +627,7 @@ class Compress(object):
 
         # Look for all the backup tarballs (.bak.tar.gz) in the dir & move'em
         for line in os.listdir(org):
-            if re.search(r'.bak.tar.gz', line):
+            if re.search(r'.tar.gz', line):
                 print(line, '-> !file found, moving...')
                 start = org + line
                 end = dst + line
