@@ -6,6 +6,7 @@ import shutil
 from zipfile import ZipFile
 import records
 from datetime import date, datetime, timedelta, time
+from matplotlib import pyplot as plt
 
 
 class TrackDB:
@@ -583,6 +584,13 @@ class YearOutputs:
                   )
         return output
 
+
+class Graphig(object):
+    """Show powerful graphs to visualize the year progress."""
+
+    # first import data from query
+    df = DataQueriesYear()
+    
 
 class Compress(object):
     """Compress and move to the backup folder."""
