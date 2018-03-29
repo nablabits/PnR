@@ -373,6 +373,13 @@ class DataQueriesYear:
     bu_coredata = db.query("SELECT * FROM work WHERE project IN (" +
                        "19, 20) ORDER BY datetime(started) ASC")
 
+    bu_per_day = db.query("SELECT project_name, started, stopped, " +
+                     "SUM(strftime('%s', stopped)-strftime('%s', started)) " +
+                     "as 'lenght' " +
+                     "FROM work " +
+                     "WHERE project BETWEEN 19 AND 24 " +
+                     "GROUP BY date(started) ORDER BY datetime(started) ASC")
+
     # OpK Hours this year query & OpK.Tries alone
     opk_data = db.query("SELECT * FROM work WHERE project BETWEEN 26 AND 30")
     opk_tries_data = db.query("SELECT * FROM work WHERE project = 28 ")
@@ -589,8 +596,12 @@ class Graphig(object):
     """Show powerful graphs to visualize the year progress."""
 
     # first import data from query
-    df = DataQueriesYear()
-    
+    yearqueries = DataQueriesYear()
+    values = [row.lenght for row in yearqueries.bu_per_day]
+    days = [index(row.lenght) for row in yearqueries.bu_per_day]
+
+    plt.plot(days, values)
+
 
 class Compress(object):
     """Compress and move to the backup folder."""
@@ -702,6 +713,9 @@ class Menu(object):
         for line in self.year_df.Output():
             print(line)
         print(50 * '*')
+
+        # Graphing
+        graph = Graphig()
 
         # Clean the tmp folder
         tdb = TrackDB()
