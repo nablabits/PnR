@@ -598,9 +598,14 @@ class Graphig(object):
     # first import data from query
     yearqueries = DataQueriesYear()
     values = [row.lenght for row in yearqueries.bu_per_day]
-    days = [index(row.lenght) for row in yearqueries.bu_per_day]
+    days = [i for i in range(1, len(yearqueries.bu_per_day) + 1)]
 
-    plt.plot(days, values)
+    if len(values) == len(days):
+        print('one entry per day, great!')
+    else:
+        raise ValueError('The numbers don\'t match (values/days)')
+
+    #plt.plot(days, values)
 
 
 class Compress(object):
