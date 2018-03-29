@@ -366,6 +366,13 @@ class DataQueriesYear:
 
     # Sleep time
     sleep_time = db.query("SELECT * FROM work WHERE project=38")
+    sleep_per_day = db.query("SELECT SUM(strftime('%s', stopped)-" +
+                             "strftime('%s', started)) " +
+                             "as 'lenght' " +
+                             "FROM work " +
+                             "WHERE project=38 " +
+                             "GROUP BY date(started) " +
+                             "ORDER BY datetime(started) ASC")
 
     # BuildUp Hours this year query
     bu_data = db.query("SELECT * FROM work WHERE project " +
@@ -374,11 +381,13 @@ class DataQueriesYear:
                        "19, 20) ORDER BY datetime(started) ASC")
 
     bu_per_day = db.query("SELECT project_name, started, stopped, " +
-                     "SUM(strftime('%s', stopped)-strftime('%s', started)) " +
-                     "as 'lenght' " +
-                     "FROM work " +
-                     "WHERE project BETWEEN 19 AND 24 " +
-                     "GROUP BY date(started) ORDER BY datetime(started) ASC")
+                          "SUM(strftime('%s', stopped)-" +
+                          "strftime('%s', started)) " +
+                          "as 'lenght' " +
+                          "FROM work " +
+                          "WHERE project BETWEEN 19 AND 24 " +
+                          "GROUP BY date(started) " +
+                          "ORDER BY datetime(started) ASC")
 
     # OpK Hours this year query & OpK.Tries alone
     opk_data = db.query("SELECT * FROM work WHERE project BETWEEN 26 AND 30")
@@ -595,17 +604,62 @@ class YearOutputs:
 class Graphig(object):
     """Show powerful graphs to visualize the year progress."""
 
-    # first import data from query
     yearqueries = DataQueriesYear()
-    values = [row.lenght for row in yearqueries.bu_per_day]
-    days = [i for i in range(1, len(yearqueries.bu_per_day) + 1)]
 
-    if len(values) == len(days):
-        print('one entry per day, great!')
-    else:
-        raise ValueError('The numbers don\'t match (values/days)')
+    def __init__(self):
+        """Self-create the object."""
+        df = self.yearqueries
+        values = [round(row.lenght / 60, 2) for row in df.bu_per_day]
+        days = [i for i in range(1, len(df.bu_per_day) + 1)]
+        sleep = [round(row.lenght / 60, 2) for row in df.sleep_per_day]
 
-    #plt.plot(days, values)
+        if len(values) == len(days):
+            print('one entry per day, great!')
+        else:
+            raise ValueError('The numbers don\'t match (values/days)')
+
+        acumulated = self.Agregation(values)
+        print('Agregation')
+        sleep = self.Agregation(sleep)
+        print('sleep')
+        awake = self.Awake(sleep)
+        print('awake')
+        ratio = self.Ratio(acumulated, awake)
+        print('ratio')
+
+        plt.plot(days, ratio)
+        plt.show()
+
+    def Agregation(self, values):
+        """Get the acumulated hours per day."""
+        idx = 1
+        result = []
+        for i in values:
+            r = sum(values[0:idx])
+            result.append(r)
+            idx += 1
+        # print(result)
+        return result
+
+    def Awake(self, sleep):
+        """Substract sleep from hours day to get the awake time."""
+        result = []
+        minutes = 1440  # minutes in a day.
+        for t in sleep:
+            add_this = minutes - t
+            result.append(add_this)
+            minutes += 1440
+        return result
+
+    def Ratio(self, acumulated, awake):
+        """Get the ratio between Buildup & awake time per day."""
+        result = []
+        for k in acumulated:
+            idx = acumulated.index(k)
+            print(idx)
+            r = awake[idx] / k
+            result.append(r)
+        return result
 
 
 class Compress(object):
@@ -720,7 +774,7 @@ class Menu(object):
         print(50 * '*')
 
         # Graphing
-        graph = Graphig()
+        # graph = Graphig()
 
         # Clean the tmp folder
         tdb = TrackDB()
