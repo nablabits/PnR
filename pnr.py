@@ -1,4 +1,3 @@
-import uuid
 import tarfile
 import os
 import re
@@ -366,7 +365,7 @@ class DataQueriesYear:
 
     # Sleep time
     sleep_time = db.query("SELECT * FROM work WHERE project=38")
-    sleep_per_day = db.query("SELECT SUM(strftime('%s', stopped)-" +
+    sleep_per_day = db.query("SELECT date(started) as 'day', SUM(strftime('%s', stopped)-" +
                              "strftime('%s', started)) " +
                              "as 'lenght' " +
                              "FROM work " +
@@ -378,9 +377,9 @@ class DataQueriesYear:
     bu_data = db.query("SELECT * FROM work WHERE project " +
                        "BETWEEN 19 AND 24 ORDER BY datetime(started) ASC")
     bu_coredata = db.query("SELECT * FROM work WHERE project IN (" +
-                       "19, 20) ORDER BY datetime(started) ASC")
+                           "19, 20) ORDER BY datetime(started) ASC")
 
-    bu_per_day = db.query("SELECT project_name, started, stopped, " +
+    bu_per_day = db.query("SELECT project_name, date(started) as 'day', stopped, " +
                           "SUM(strftime('%s', stopped)-" +
                           "strftime('%s', started)) " +
                           "as 'lenght' " +
@@ -609,28 +608,60 @@ class Graphig(object):
     def __init__(self):
         """Self-create the object."""
         df = self.yearqueries
-        values = [round(row.lenght / 60, 2) for row in df.bu_per_day]
-        days = [i for i in range(1, len(df.bu_per_day) + 1)]
-        sleep = [round(row.lenght / 60, 2) for row in df.sleep_per_day]
+        days = self.DaysElapsed()
+        data = df.bu_per_day
+        bu_per_day = self.PerDay(days, data)
+        data = df.sleep_per_day
+        awake_per_day = self.PerDay(days, data)
 
-        if len(values) == len(days):
-            print('one entry per day, great!')
-        else:
-            raise ValueError('The numbers don\'t match (values/days)')
+        # Aggregation functions
+        agg_bu = self.Aggregation(bu_per_day)
+        agg_sleep = self.Aggregation(awake_per_day)
+        agg_day_lenght = [day * 86400 for day in range(1, len(days)+1)]
+        agg_awake = self.Awake(agg_sleep, agg_day_lenght)
+        agg_ratio = self.Ratio(agg_bu, agg_awake)
 
-        acumulated = self.Agregation(values)
-        print('Agregation')
-        sleep = self.Agregation(sleep)
-        print('sleep')
-        awake = self.Awake(sleep)
-        print('awake')
-        ratio = self.Ratio(acumulated, awake)
-        print('ratio')
-
-        plt.plot(days, ratio)
+        day_no = [day * 1 for day in range(0, len(days))]
+        last = -(len(days) - 20)
+        plt.axhline(y=20, linewidth='2')
+        plt.ylabel('BuildUp Hours')
+        plt.grid(color='lime', linestyle='-', linewidth='0.5')
+        plt.plot(day_no[last:], agg_ratio[last:])
         plt.show()
 
-    def Agregation(self, values):
+    def DaysElapsed(self):
+        """Get a list of the days elapsed since the beginning of the year."""
+        start = date(2018, 1, 1)
+        end = date.today()
+        delta = timedelta(days=1)
+        result = []
+        while start <= end:
+            result.append(start)
+            start = start + delta
+        return result
+
+    def PerDay(self, day_list, data):
+        """List of elapsed time in the activity per day (& could be 0)."""
+        result = []
+        count = 0
+        for day in day_list:
+            count += 1
+            have_entry = False
+            for entry in data:
+                # print(day, entry.day, entry.lenght)
+                if entry.day == str(day):
+                    count += 1
+                    have_entry = True
+                    result.append(entry.lenght)
+                    # print(day, entry.day, entry.lenght)
+                    break
+            if have_entry is False:
+                result.append(0)
+                # print(day, 0)
+        # print(count, 'loops')
+        return result
+
+    def Aggregation(self, values):
         """Get the acumulated hours per day."""
         idx = 1
         result = []
@@ -641,14 +672,13 @@ class Graphig(object):
         # print(result)
         return result
 
-    def Awake(self, sleep):
+    def Awake(self, sleep, day_lenght):
         """Substract sleep from hours day to get the awake time."""
         result = []
-        minutes = 1440  # minutes in a day.
-        for t in sleep:
-            add_this = minutes - t
-            result.append(add_this)
-            minutes += 1440
+        for i in day_lenght:
+            idx = day_lenght.index(i)
+            sleep_time = sleep[idx]
+            result.append(i - sleep_time)
         return result
 
     def Ratio(self, acumulated, awake):
@@ -656,8 +686,8 @@ class Graphig(object):
         result = []
         for k in acumulated:
             idx = acumulated.index(k)
-            print(idx)
-            r = awake[idx] / k
+            # print(idx)
+            r = k * 100 / awake[idx]
             result.append(r)
         return result
 
@@ -774,7 +804,7 @@ class Menu(object):
         print(50 * '*')
 
         # Graphing
-        # graph = Graphig()
+        graph = Graphig()
 
         # Clean the tmp folder
         tdb = TrackDB()
