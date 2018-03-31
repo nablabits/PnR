@@ -379,7 +379,7 @@ class DataQueriesYear:
     bu_coredata = db.query("SELECT * FROM work WHERE project IN (" +
                            "19, 20) ORDER BY datetime(started) ASC")
 
-    bu_per_day = db.query("SELECT project_name, date(started) as 'day', stopped, " +
+    bu_per_day = db.query("SELECT date(started) as 'day', " +
                           "SUM(strftime('%s', stopped)-" +
                           "strftime('%s', started)) " +
                           "as 'lenght' " +
@@ -387,6 +387,17 @@ class DataQueriesYear:
                           "WHERE project BETWEEN 19 AND 24 " +
                           "GROUP BY date(started) " +
                           "ORDER BY datetime(started) ASC")
+
+    bu_total = db.query("SELECT date(started) as 'day', " +
+                        "SUM(strftime('%s', stopped)-" +
+                        "strftime('%s', started)) " +
+                        "as 'lenght' " +
+                        "FROM work " +
+                        "INNER JOIN work_tag ON work.id=work_id " +
+                        "WHERE work_tag.tag_id = 20 " +
+                        "AND date(started) >= '2018-01-01' " +
+                        "GROUP BY date(started) " +
+                        "ORDER BY datetime(started) ASC")
 
     # OpK Hours this year query & OpK.Tries alone
     opk_data = db.query("SELECT * FROM work WHERE project BETWEEN 26 AND 30")
@@ -606,20 +617,27 @@ class Graphig(object):
     yearqueries = DataQueriesYear()
 
     def __init__(self):
-        """Self-create the object."""
+        """Plot the evolution of the ratio during the year."""
         df = self.yearqueries
         days = self.DaysElapsed()
-        data = df.bu_per_day
-        bu_per_day = self.PerDay(days, data)
-        data = df.sleep_per_day
-        awake_per_day = self.PerDay(days, data)
+        bu_per_day = self.PerDay(days, df.bu_per_day)
+        bu_total = self.PerDay(days, df.bu_total)
+        awake_per_day = self.PerDay(days, df.sleep_per_day)
 
         # Aggregation functions
         agg_bu = self.Aggregation(bu_per_day)
+        agg_bu_total = self.Aggregation(bu_total)
         agg_sleep = self.Aggregation(awake_per_day)
         agg_day_lenght = [day * 86400 for day in range(1, len(days)+1)]
         agg_awake = self.Awake(agg_sleep, agg_day_lenght)
         agg_ratio = self.Ratio(agg_bu, agg_awake)
+        agg_ratio_total = self.Ratio(agg_bu_total, agg_awake)
+
+        for i in agg_bu:
+            idx = agg_bu.index(i)
+            value = agg_bu_total[idx]
+            if value != i:
+                print(i, value, agg_bu.index(i), agg_bu_total.index(value))
 
         day_no = [day * 1 for day in range(0, len(days))]
         last = -(len(days) - 20)
@@ -627,6 +645,7 @@ class Graphig(object):
         plt.ylabel('BuildUp Hours')
         plt.grid(color='lime', linestyle='-', linewidth='0.5')
         plt.plot(day_no[last:], agg_ratio[last:])
+        plt.plot(day_no[last:], agg_ratio_total[last:])
         plt.show()
 
     def DaysElapsed(self):
