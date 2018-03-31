@@ -1,3 +1,7 @@
+"""This script provides useful data for final day's summary.
+
+Perform a backup of the files as well.
+"""
 import tarfile
 import os
 import re
@@ -402,6 +406,15 @@ class DataQueriesYear:
                            "GROUP BY date(started) " +
                            "ORDER BY datetime(started) ASC")
 
+    shared_per_day = db.query("SELECT date(started) as 'day', " +
+                              "SUM(strftime('%s', stopped)-" +
+                              "strftime('%s', started)) " +
+                              "as 'lenght' " +
+                              "FROM work " +
+                              "WHERE project=31 " +
+                              "GROUP BY date(started) " +
+                              "ORDER BY datetime(started) ASC")
+
     # OpK Hours this year query & OpK.Tries alone
     opk_data = db.query("SELECT * FROM work WHERE project BETWEEN 26 AND 30")
     opk_tries_data = db.query("SELECT * FROM work WHERE project = 28 ")
@@ -633,17 +646,20 @@ class Graphig(object):
         bu_total = self.PerDay(days, df.bu_total)
         awake_per_day = self.PerDay(days, df.sleep_per_day)
         opk_per_day = self.PerDay(days, df.opk_per_day)
+        shared_per_day = self.PerDay(days, df.shared_per_day)
 
         # Aggregation functions
         agg_bu = self.Aggregation(bu_per_day)
         agg_bu_total = self.Aggregation(bu_total)
         agg_opk = self.Aggregation(opk_per_day)
+        agg_shared = self.Aggregation(shared_per_day)
         agg_sleep = self.Aggregation(awake_per_day)
         agg_day_lenght = [day * 86400 for day in range(1, len(days)+1)]
         agg_awake = self.Awake(agg_sleep, agg_day_lenght)
         agg_ratio = self.Ratio(agg_bu, agg_awake)
         agg_ratio_total = self.Ratio(agg_bu_total, agg_awake)
         agg_ratio_opk = self.Ratio(agg_opk, agg_awake)
+        agg_ratio_shared = self.Ratio(agg_shared, agg_awake)
 
         # for i in agg_bu:
         #     idx = agg_bu.index(i)
@@ -660,6 +676,7 @@ class Graphig(object):
         plt.plot(day_no[last:], agg_ratio[last:], label='BU Projects')
         plt.plot(day_no[last:], agg_ratio_total[last:], label='BU total')
         plt.plot(day_no[last:], agg_ratio_opk[last:], label='OpK')
+        plt.plot(day_no[last:], agg_ratio_shared[last:], label='Shared')
         plt.legend()
         plt.show()
 
@@ -838,7 +855,7 @@ class Menu(object):
         print(50 * '*')
 
         # Graphing
-        graph = Graphig()
+        Graphig()
 
         # Clean the tmp folder
         tdb = TrackDB()
