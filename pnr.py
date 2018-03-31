@@ -817,7 +817,7 @@ class Menu(object):
         skip = False
 
         # Quick view
-        option = input('Press [y] to perform a quick view. ')
+        option = input('Press [y] to perform a quick view (without backup). ')
         if option == 'y':
             self.summary.OutputThedayBefore()
             self.summary.OutputYesterday()
@@ -855,14 +855,16 @@ class Menu(object):
         print(50 * '*')
 
         # Graphing
-        Graphig()
+        option = input('Press [y] to show the graph. ')
+        if option == 'y':
+            Graphig()
 
         # Clean the tmp folder
         tdb = TrackDB()
         tdb.CleanUp()
 
         # Finally, launch the backup utility
-        if skip is False:
+        if not skip:
             self.compress.save()
 
 # Finally, start everythig with a sigle call.
