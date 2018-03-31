@@ -618,7 +618,11 @@ class Graphig(object):
     def __init__(self):
         """Plot the evolution of the ratio during the year."""
         # Some queries
+<<<<<<< HEAD
         df = DataQueriesYear()
+=======
+        df = self.yearqueries
+>>>>>>> f49f5d8188d05cb70e7bc2712228f5fe035214b4
         days = self.DaysElapsed()
         bu_per_day = self.PerDay(days, df.bu_per_day)
         bu_total = self.PerDay(days, df.bu_total)
