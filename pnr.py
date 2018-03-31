@@ -393,6 +393,15 @@ class DataQueriesYear:
                         "GROUP BY date(started) " +
                         "ORDER BY datetime(started) ASC")
 
+    opk_per_day = db.query("SELECT date(started) as 'day', " +
+                           "SUM(strftime('%s', stopped)-" +
+                           "strftime('%s', started)) " +
+                           "as 'lenght' " +
+                           "FROM work " +
+                           "WHERE project BETWEEN 26 AND 30 " +
+                           "GROUP BY date(started) " +
+                           "ORDER BY datetime(started) ASC")
+
     # OpK Hours this year query & OpK.Tries alone
     opk_data = db.query("SELECT * FROM work WHERE project BETWEEN 26 AND 30")
     opk_tries_data = db.query("SELECT * FROM work WHERE project = 28 ")
@@ -618,24 +627,23 @@ class Graphig(object):
     def __init__(self):
         """Plot the evolution of the ratio during the year."""
         # Some queries
-<<<<<<< HEAD
         df = DataQueriesYear()
-=======
-        df = self.yearqueries
->>>>>>> f49f5d8188d05cb70e7bc2712228f5fe035214b4
         days = self.DaysElapsed()
         bu_per_day = self.PerDay(days, df.bu_per_day)
         bu_total = self.PerDay(days, df.bu_total)
         awake_per_day = self.PerDay(days, df.sleep_per_day)
+        opk_per_day = self.PerDay(days, df.opk_per_day)
 
         # Aggregation functions
         agg_bu = self.Aggregation(bu_per_day)
         agg_bu_total = self.Aggregation(bu_total)
+        agg_opk = self.Aggregation(opk_per_day)
         agg_sleep = self.Aggregation(awake_per_day)
         agg_day_lenght = [day * 86400 for day in range(1, len(days)+1)]
         agg_awake = self.Awake(agg_sleep, agg_day_lenght)
         agg_ratio = self.Ratio(agg_bu, agg_awake)
         agg_ratio_total = self.Ratio(agg_bu_total, agg_awake)
+        agg_ratio_opk = self.Ratio(agg_opk, agg_awake)
 
         # for i in agg_bu:
         #     idx = agg_bu.index(i)
@@ -643,6 +651,7 @@ class Graphig(object):
         #     if value != i:
         #         print(i, value, agg_bu.index(i), agg_bu_total.index(value))
 
+        # finally, create the graph
         day_no = [day * 1 for day in range(0, len(days))]
         last = -(len(days) - 20)  # first das are quite irregular
         plt.axhline(y=20, linewidth='2')
@@ -650,6 +659,7 @@ class Graphig(object):
         plt.grid(color='lime', linestyle='-', linewidth='0.5')
         plt.plot(day_no[last:], agg_ratio[last:], label='BU Projects')
         plt.plot(day_no[last:], agg_ratio_total[last:], label='BU total')
+        plt.plot(day_no[last:], agg_ratio_opk[last:], label='OpK')
         plt.legend()
         plt.show()
 
