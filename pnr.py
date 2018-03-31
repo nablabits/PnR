@@ -365,7 +365,8 @@ class DataQueriesYear:
 
     # Sleep time
     sleep_time = db.query("SELECT * FROM work WHERE project=38")
-    sleep_per_day = db.query("SELECT date(started) as 'day', SUM(strftime('%s', stopped)-" +
+    sleep_per_day = db.query("SELECT date(started) as 'day', " +
+                             "SUM(strftime('%s', stopped)-" +
                              "strftime('%s', started)) " +
                              "as 'lenght' " +
                              "FROM work " +
@@ -462,7 +463,7 @@ class YearOutputs:
     def BuTarget(self, bu, tt):
         """Calculate the hours over/under the goal."""
         goal = 20 * tt / 100
-        bu =  bu * tt / 100
+        bu = bu * tt / 100
         diff = round(bu - goal, 2)
         if diff > 0:
             output = '+' + str(abs(diff)) + 'h over goal'
@@ -561,6 +562,8 @@ class YearOutputs:
         df = self.yearqueries
         bu = self.SumTimes(df.bu_data)
         bu_core = self.SumTimes(df.bu_coredata)
+        bu_total = sum([value.lenght for value in df.bu_total])
+        bu_total = round(bu_total / 3600, 2)  # in hours
         bu_hi = self.SumTimes(df.qlt_hi_data)
         bu_mid = self.SumTimes(df.qlt_mid_data)
         bu_lo = self.SumTimes(df.qlt_lo_data)
@@ -572,22 +575,24 @@ class YearOutputs:
         # Percents
         tt_perc = self.TimePerc(tt)
         bu_perc = self.TimePerc(bu)
+        bu_total_perc = self.TimePerc(bu_total)
         bu_hi_perc = self.QualityPerc(bu_hi)
         bu_mid_perc = self.QualityPerc(bu_mid)
         bu_lo_perc = self.QualityPerc(bu_lo)
+        opk_perc = self.TimePerc(opk)
         opk_tries_perc = self.OpKPerc(opk_tries)
 
         # Bu target
         bu_goal = self.BuTarget(bu_perc, tt)
+        bu_total_goal = self.BuTarget(bu_total_perc, tt)
 
         # Bu_core range
         week = date.today().isocalendar()[1]
         corerange = (week * 18, week * 20)
 
-        # since current year hours discount the sleep time
+        # Since current year hours discount the sleep time
         corr = 1 - st / (self.YearCurrentHours() + st)
         st_perc = round(self.TimePerc(st) * corr, 1)
-        opk_perc = self.TimePerc(opk)
 
         # Untagged entries
         self.NoTagEntries()
@@ -596,7 +601,8 @@ class YearOutputs:
 
         output = (('Year progress:'),
                   (' Sleep: ' + data_str(st_perc, st)),
-                  (' From Awake time:'),
+                  (' From Awake time: ' +
+                  str(round(self.YearCurrentHours(), 2)) + 'h'),
                   ('  Time Tracked: ' + data_str(tt_perc, tt)),
                   ('  BuildUp: ' + data_str(bu_perc, bu)) + bu_goal,
                   ('  Quality: ' +
@@ -605,6 +611,8 @@ class YearOutputs:
                    str(bu_lo_perc) + '% lo.'
                    ),
                   ('  Core Range: ' + str(bu_core) + str(corerange)),
+                  (('  BuildUp Total: ' + data_str(bu_total_perc, bu_total)) +
+                  bu_total_goal),
                   ('  OpK: ' + data_str(opk_perc, opk)),
                   ('  OpK ratio: ' + str(opk_tries_perc) + '%'),
                   )
@@ -618,6 +626,7 @@ class Graphig(object):
 
     def __init__(self):
         """Plot the evolution of the ratio during the year."""
+        # Some queries
         df = self.yearqueries
         days = self.DaysElapsed()
         bu_per_day = self.PerDay(days, df.bu_per_day)
@@ -640,12 +649,13 @@ class Graphig(object):
                 print(i, value, agg_bu.index(i), agg_bu_total.index(value))
 
         day_no = [day * 1 for day in range(0, len(days))]
-        last = -(len(days) - 20)
+        last = -(len(days) - 20)  # first das are quite irregular
         plt.axhline(y=20, linewidth='2')
         plt.ylabel('BuildUp Hours')
         plt.grid(color='lime', linestyle='-', linewidth='0.5')
-        plt.plot(day_no[last:], agg_ratio[last:])
-        plt.plot(day_no[last:], agg_ratio_total[last:])
+        plt.plot(day_no[last:], agg_ratio[last:], label='BU Projects')
+        plt.plot(day_no[last:], agg_ratio_total[last:], label='BU total')
+        plt.legend()
         plt.show()
 
     def DaysElapsed(self):
