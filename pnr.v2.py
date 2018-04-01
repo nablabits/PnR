@@ -93,15 +93,46 @@ class TrackDB:
         print('tmp folder deleted once used')
 
 
-class DataYear:
+class DataYear(object):
     """Group the year data in an object."""
 
-    def __init__(self):
+    def Year(self):
         """Create an object with all the data of the year."""
-
         # First pickup the file
         tdb = TrackDB()
         zipfile = tdb.GetDB()
         db = records.Database('sqlite:///' + zipfile)
 
-        query = 'SELECT * from work ORDER BY datetime(started) ASC'
+        fields = {'work.id': 'id',
+                  'project': 'project',
+                  'project_name': 'name',
+                  'date(started)': 'started',
+                  'time(started)': 'hour',
+                  'date(stopped)': 'stopped',
+                  "strftime('%s',stopped)-strftime('%s', started)": 'lenght'
+                  }
+        fields_str = ''
+        for k in fields:
+            r = (k + ' as \'' + fields[k] + '\', ')
+            # print(r)
+            fields_str = fields_str + r
+        fields_str = 'SELECT ' + fields_str[0:-2]
+
+        table = ' FROM work'
+        constraint = ' WHERE date(started) >= \'2018-01-01\' '
+        order = 'ORDER BY datetime(started) ASC'
+
+        # one for all query
+        query = fields_str + table + constraint + order
+
+        # The raw query
+        df = db.query(query)
+        tdb.CleanUp()
+
+        return df
+
+# an example
+df = DataYear().Year()
+
+idx = 5
+print(df[idx].id, df[idx].name, df[idx].started, df[idx].lenght)
