@@ -96,13 +96,13 @@ class TrackDB:
 class DataYear(object):
     """Group the year data in an object."""
 
+    tdb = TrackDB()
+    zipfile = tdb.GetDB()
+    db = records.Database('sqlite:///' + zipfile)
+
     def Year(self):
         """Create an object with all the data of the year."""
-        # First pickup the file
-        tdb = TrackDB()
-        zipfile = tdb.GetDB()
-        db = records.Database('sqlite:///' + zipfile)
-
+        # Elements of the query
         fields = {'work.id': 'id',
                   'project': 'project',
                   'project_name': 'name',
@@ -114,7 +114,6 @@ class DataYear(object):
         fields_str = ''
         for k in fields:
             r = (k + ' as \'' + fields[k] + '\', ')
-            # print(r)
             fields_str = fields_str + r
         fields_str = 'SELECT ' + fields_str[0:-2]
 
@@ -122,17 +121,86 @@ class DataYear(object):
         constraint = ' WHERE date(started) >= \'2018-01-01\' '
         order = 'ORDER BY datetime(started) ASC'
 
-        # one for all query
+        # Perform the one-for-all query
         query = fields_str + table + constraint + order
 
         # The raw query
-        df = db.query(query)
-        tdb.CleanUp()
-
+        df = self.db.query(query)
+        print('db hit')  # to measure how many times we hit the db
+        self.tdb.CleanUp()
         return df
 
-# an example
-df = DataYear().Year()
+    def Label(self):
+        """Create an object with the labels per id."""
+        fields = {'work.id': 'id',
+                  'project': 'project',
+                  'project_name': 'name',
+                  'date(started)': 'started',
+                  'time(started)': 'hour',
+                  'date(stopped)': 'stopped',
+                  "strftime('%s',stopped)-strftime('%s', started)": 'lenght'
+                  }
+        fields_str = ''
+        for k in fields:
+            r = (k + ' as \'' + fields[k] + '\', ')
+            fields_str = fields_str + r
+        fields_str = 'SELECT ' + fields_str[0:-2]
 
-idx = 5
-print(df[idx].id, df[idx].name, df[idx].started, df[idx].lenght)
+        table = ' FROM work'
+        constraint = ' WHERE date(started) >= \'2018-01-01\' '
+        order = 'ORDER BY datetime(started) ASC'
+
+        # Perform the one-for-all query
+        query = fields_str + table + constraint + order
+
+
+class Filters(object):
+    """Set different filters to apply on queries."""
+
+    def __init__(self):
+        """Load all the filters at once."""
+        df = DataYear().Year()
+        week = self.Week(df)
+        # BuildUp
+        # bu_year = self.BuProject(df)
+        # bu_week = self.BuProject(week)
+        bu_year, bu_week = self.BuProject(df), self.BuProject(week)
+        # OpK
+
+    def Week(self, data):
+        """Get current week's entries."""
+        # first, determine last week
+        today = date.today()
+        delta = timedelta(days=-1)
+        start = today
+        while start.isocalendar()[2] != 1:  # reduce days until reach monday
+            start = start + delta
+
+        # Now, get the entries
+        result = []
+        for entry in data:
+            cur_date = datetime.strptime(entry.started, '%Y-%m-%d').date()
+            if cur_date >= start:
+                result.append(entry)
+
+        # for row in result:
+        #     print(row.id, row.hour, row.name)
+
+        return result
+
+    def BuProject(self, data):
+        """Filter bu data (from BU projects only)."""
+        prj_id = (19, 20, 21, 22, 23, 24)
+        result = []
+        for entry in data:
+            for id in prj_id:
+                if entry.project == id:
+                    result.append(entry)
+
+        for row in result:
+            print(row.id, row.started, row.hour, row.name)
+
+        return result
+
+# an example
+df = Filters()
