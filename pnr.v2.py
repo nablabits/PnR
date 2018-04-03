@@ -133,13 +133,7 @@ class DataYear(object):
     def Label(self):
         """Create an object with the labels per id."""
         fields = {'work.id': 'id',
-                  'project': 'project',
-                  'project_name': 'name',
-                  'date(started)': 'started',
-                  'time(started)': 'hour',
-                  'date(stopped)': 'stopped',
-                  "strftime('%s',stopped)-strftime('%s', started)": 'lenght'
-                  }
+                  'tag.name': 'tag'}
         fields_str = ''
         for k in fields:
             r = (k + ' as \'' + fields[k] + '\', ')
@@ -147,11 +141,13 @@ class DataYear(object):
         fields_str = 'SELECT ' + fields_str[0:-2]
 
         table = ' FROM work'
-        constraint = ' WHERE date(started) >= \'2018-01-01\' '
-        order = 'ORDER BY datetime(started) ASC'
+        join1 = ' INNER JOIN work_tag ON work.id=work_id'
+        join2 = ' INNER JOIN tag ON tag.id=work_tag.tag_id'
+        constraint = ' WHERE date(started) >= \'2018-01-01\''
+        order = ' ORDER BY work.id ASC'
 
         # Perform the one-for-all query
-        query = fields_str + table + constraint + order
+        query = fields_str + table + join1 + join2 + constraint + order
 
 
 class Filters(object):
@@ -197,8 +193,8 @@ class Filters(object):
                 if entry.project == id:
                     result.append(entry)
 
-        for row in result:
-            print(row.id, row.started, row.hour, row.name)
+        # for row in result:
+        #     print(row.id, row.started, row.hour, row.name)
 
         return result
 
