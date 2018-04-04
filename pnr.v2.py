@@ -96,11 +96,21 @@ class TrackDB:
 class DataYear(object):
     """Group the year data in an object."""
 
-    tdb = TrackDB()
-    zipfile = tdb.GetDB()
-    db = records.Database('sqlite:///' + zipfile)
+    def __init__(self):
+        """Instantiatate all the data at once."""
+        # Pickup the dbfile
+        tdb = TrackDB()
+        zipfile = tdb.GetDB()
+        db = records.Database('sqlite:///' + zipfile)
 
-    def Year(self):
+        year = self.Year(db)
+        labels = self.Labels(db)
+        week = self.WeekFilter(year)
+        bu_project = self.BuProjectFilter(year)
+        self.bu = bu_project
+        tdb.CleanUp()
+
+    def Year(self, db):
         """Create an object with all the data of the year."""
         # Elements of the query
         fields = {'work.id': 'id',
@@ -125,12 +135,12 @@ class DataYear(object):
         query = fields_str + table + constraint + order
 
         # The raw query
-        df = self.db.query(query)
+        df = db.query(query)
         print('db hit')  # to measure how many times we hit the db
-        self.tdb.CleanUp()
+        # self.tdb.CleanUp()
         return df
 
-    def Label(self):
+    def Labels(self, db):
         """Create an object with the labels per id."""
         fields = {'work.id': 'id',
                   'project': 'project',
@@ -153,21 +163,12 @@ class DataYear(object):
         # Perform the one-for-all query
         query = fields_str + table + constraint + order
 
+        df = db.query(query)
+        print('db hit')  # to measure how many times we hit the db
+        # self.tdb.CleanUp()
+        return df
 
-class Filters(object):
-    """Set different filters to apply on queries."""
-
-    def __init__(self):
-        """Load all the filters at once."""
-        df = DataYear().Year()
-        week = self.Week(df)
-        # BuildUp
-        # bu_year = self.BuProject(df)
-        # bu_week = self.BuProject(week)
-        bu_year, bu_week = self.BuProject(df), self.BuProject(week)
-        # OpK
-
-    def Week(self, data):
+    def WeekFilter(self, data):
         """Get current week's entries."""
         # first, determine last week
         today = date.today()
@@ -188,7 +189,7 @@ class Filters(object):
 
         return result
 
-    def BuProject(self, data):
+    def BuProjectFilter(self, data):
         """Filter bu data (from BU projects only)."""
         prj_id = (19, 20, 21, 22, 23, 24)
         result = []
@@ -201,6 +202,5 @@ class Filters(object):
             print(row.id, row.started, row.hour, row.name)
 
         return result
-
-# an example
-df = Filters()
+data = DataYear()
+data.bu
