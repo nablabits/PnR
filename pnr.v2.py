@@ -97,20 +97,14 @@ class DataYear(object):
     """Group the year data in an object."""
 
     def __init__(self):
-        """Instantiatate all the data at once."""
+        """Start the object."""
         # Pickup the dbfile
         tdb = TrackDB()
         zipfile = tdb.GetDB()
-        db = records.Database('sqlite:///' + zipfile)
-
-        year = self.Year(db)
-        labels = self.Labels(db)
-        week = self.WeekFilter(year)
-        bu_project = self.BuProjectFilter(year)
-        self.bu = bu_project
+        self.db = records.Database('sqlite:///' + zipfile)
         tdb.CleanUp()
 
-    def Year(self, db):
+    def Year(self):
         """Create an object with all the data of the year."""
         # Elements of the query
         fields = {'work.id': 'id',
@@ -135,12 +129,12 @@ class DataYear(object):
         query = fields_str + table + constraint + order
 
         # The raw query
-        df = db.query(query)
+        df = self.db.query(query)
         print('db hit')  # to measure how many times we hit the db
         # self.tdb.CleanUp()
         return df
 
-    def Labels(self, db):
+    def Labels(self):
         """Create an object with the labels per id."""
         fields = {'work.id': 'id',
                   'project': 'project',
@@ -163,12 +157,12 @@ class DataYear(object):
         # Perform the one-for-all query
         query = fields_str + table + constraint + order
 
-        df = db.query(query)
+        df = self.db.query(query)
         print('db hit')  # to measure how many times we hit the db
         # self.tdb.CleanUp()
         return df
 
-    def WeekFilter(self, data):
+    def WeekFilter(self, df):
         """Get current week's entries."""
         # first, determine last week
         today = date.today()
@@ -179,21 +173,21 @@ class DataYear(object):
 
         # Now, get the entries
         result = []
-        for entry in data:
+        for entry in df:
             cur_date = datetime.strptime(entry.started, '%Y-%m-%d').date()
             if cur_date >= start:
                 result.append(entry)
 
-        # for row in result:
-        #     print(row.id, row.hour, row.name)
+        for row in result:
+            print(row.id, row.hour, row.name)
 
         return result
 
-    def BuProjectFilter(self, data):
+    def BuProjectFilter(self, df):
         """Filter bu data (from BU projects only)."""
         prj_id = (19, 20, 21, 22, 23, 24)
         result = []
-        for entry in data:
+        for entry in df:
             for id in prj_id:
                 if entry.project == id:
                     result.append(entry)
@@ -202,5 +196,28 @@ class DataYear(object):
             print(row.id, row.started, row.hour, row.name)
 
         return result
+
+    def BuLabelFilter(self, df):
+        """Filter bu data (from all BU labels)."""
+        tags = self.Labels()
+        tag_id_list = []
+        for entry in tags:
+            if entry.name =0 'BuildUp':
+                
+
+        result = []
+        for entry in df:
+            for id in prj_id:
+                if entry.project == id:
+                    result.append(entry)
+
+        for row in result:
+            print(row.id, row.started, row.hour, row.name)
+
+        return result
+
+
 data = DataYear()
-data.bu
+df = data.Year()
+filtered = data.WeekFilter(df)
+data.BuProjectFilter(filtered)
