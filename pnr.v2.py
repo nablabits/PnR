@@ -10,6 +10,55 @@ from zipfile import ZipFile
 import records
 from datetime import date, datetime, timedelta, time
 from matplotlib import pyplot as plt
+from math import floor
+
+
+class Utils(object):
+    """Define some useful algorithms."""
+
+    def binary(self, numberlist, number):
+        """Perform a number binary search in a given number list."""
+        max, min = numberlist[-1], numberlist[0]
+        lenght = len(numberlist) - 1
+        lo, hi = 0, lenght  # lo-hi boundaries
+        result, loop = False, True
+        cur_value = numberlist[-1]
+        count = 0
+
+        if number < min:
+            print(number, 'under numberlist')
+            loop = False
+        if number > max:
+            print(number, 'over numberlist')
+            loop = False
+
+        while cur_value != number and loop:
+            count += 1
+            avg_idx = int(floor((lo + hi) / 2))  # get the mid index
+            cur_value = numberlist[avg_idx]  # get current value
+
+            if lo >= lenght or hi > lenght:
+                print('not in list')
+                break
+
+            # print('testing', cur_value, number)
+            if cur_value < number:
+                lo = avg_idx + 1
+                # print("[oh, too low]")
+                # print(lo, hi, lenght)
+                if numberlist[lo] > numberlist[hi]:
+                    break
+            elif cur_value > number:
+                hi = avg_idx - 1
+                # print("[oh, too high]")
+                if numberlist[lo] > numberlist[hi]:
+                    break
+            elif cur_value == number:
+                # print('Numbers match!', cur_value, number)
+                result = True
+                break
+
+        return (result, count)
 
 
 class TrackDB:
@@ -96,9 +145,13 @@ class TrackDB:
 class DataYear(object):
     """Group the year data in an object."""
 
-    tdb = TrackDB()
-    zipfile = tdb.GetDB()
-    db = records.Database('sqlite:///' + zipfile)
+    def __init__(self):
+        """Start the object."""
+        # Pickup the dbfile
+        tdb = TrackDB()
+        zipfile = tdb.GetDB()
+        self.db = records.Database('sqlite:///' + zipfile)
+        tdb.CleanUp()
 
     def Year(self):
         """Create an object with all the data of the year."""
@@ -127,10 +180,10 @@ class DataYear(object):
         # The raw query
         df = self.db.query(query)
         print('db hit')  # to measure how many times we hit the db
-        self.tdb.CleanUp()
+        # self.tdb.CleanUp()
         return df
 
-    def Label(self):
+    def Labels(self):
         """Create an object with the labels per id."""
         fields = {'work.id': 'id',
                   'tag.name': 'tag'}
@@ -149,21 +202,12 @@ class DataYear(object):
         # Perform the one-for-all query
         query = fields_str + table + join1 + join2 + constraint + order
 
+        df = self.db.query(query)
+        print('db hit')  # to measure how many times we hit the db
+        # self.tdb.CleanUp()
+        return df
 
-class Filters(object):
-    """Set different filters to apply on queries."""
-
-    def __init__(self):
-        """Load all the filters at once."""
-        df = DataYear().Year()
-        week = self.Week(df)
-        # BuildUp
-        # bu_year = self.BuProject(df)
-        # bu_week = self.BuProject(week)
-        bu_year, bu_week = self.BuProject(df), self.BuProject(week)
-        # OpK
-
-    def Week(self, data):
+    def WeekFilter(self, df):
         """Get current week's entries."""
         # first, determine last week
         today = date.today()
@@ -174,7 +218,7 @@ class Filters(object):
 
         # Now, get the entries
         result = []
-        for entry in data:
+        for entry in df:
             cur_date = datetime.strptime(entry.started, '%Y-%m-%d').date()
             if cur_date >= start:
                 result.append(entry)
@@ -184,11 +228,11 @@ class Filters(object):
 
         return result
 
-    def BuProject(self, data):
+    def BuProjectFilter(self, df):
         """Filter bu data (from BU projects only)."""
         prj_id = (19, 20, 21, 22, 23, 24)
         result = []
-        for entry in data:
+        for entry in df:
             for id in prj_id:
                 if entry.project == id:
                     result.append(entry)
@@ -198,5 +242,51 @@ class Filters(object):
 
         return result
 
-# an example
-df = Filters()
+    def LabelFilter(self, df, label):
+        """Filter data with the selected label."""
+        # First, get the work ids with selected label
+        tags = self.Labels()
+        tag_id_list = []
+        utils = Utils()
+
+        # Build the tag list
+        for entry in tags:
+            if entry.tag == label:
+                # print(entry.id, entry.tag)
+                tag_id_list.append(entry.id)
+
+        # for i in tag_id_list:
+        #     print(i)
+
+        # Now compare tag list with data frame using bin search
+        result = []
+        count = 0
+        for entry in df:
+            count += 1
+            # print('testing', entry.id)
+            binary = utils.binary(tag_id_list, entry.id)
+            if binary[0] is True:
+                # print('adding', entry.id)
+                result.append(entry)
+                count = count + binary[1]
+
+        # this is 116 times larger
+        # for entry in df:
+        #     count += 1
+        #     for tag in tag_id_list:
+        #         count += 1
+        #         if entry.id == tag:
+        #             result.append(entry)
+
+        for row in result:
+            print(row.id, row.started, row.hour, row.name)
+
+        print('in', count, 'loops')
+
+        return result
+
+
+data = DataYear()
+df = data.Year()
+filtered = data.WeekFilter(df)
+data.LabelFilter(filtered, 'Sport&Wellness')
