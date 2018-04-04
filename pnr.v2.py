@@ -10,6 +10,55 @@ from zipfile import ZipFile
 import records
 from datetime import date, datetime, timedelta, time
 from matplotlib import pyplot as plt
+from math import floor
+
+
+class Utils(object):
+    """Define some useful algorithms."""
+
+    def binary(self, numberlist, number):
+        """Perform a number binary search in a given number list."""
+        max, min = numberlist[-1], numberlist[0]
+        lenght = len(numberlist) - 1
+        lo, hi = 0, lenght  # lo-hi boundaries
+        result, loop = False, True
+        cur_value = numberlist[-1]
+        count = 0
+
+        if number < min:
+            print(number, 'under numberlist')
+            loop = False
+        if number > max:
+            print(number, 'over numberlist')
+            loop = False
+
+        while cur_value != number and loop:
+            count += 1
+            avg_idx = int(floor((lo + hi) / 2))  # get the mid index
+            cur_value = numberlist[avg_idx]  # get current value
+
+            if lo >= lenght or hi > lenght:
+                print('not in list')
+                break
+
+            # print('testing', cur_value, number)
+            if cur_value < number:
+                lo = avg_idx + 1
+                # print("[oh, too low]")
+                # print(lo, hi, lenght)
+                if numberlist[lo] > numberlist[hi]:
+                    break
+            elif cur_value > number:
+                hi = avg_idx - 1
+                # print("[oh, too high]")
+                if numberlist[lo] > numberlist[hi]:
+                    break
+            elif cur_value == number:
+                # print('Numbers match!', cur_value, number)
+                result = True
+                break
+
+        return (result, count)
 
 
 class TrackDB:
@@ -137,13 +186,7 @@ class DataYear(object):
     def Labels(self):
         """Create an object with the labels per id."""
         fields = {'work.id': 'id',
-                  'project': 'project',
-                  'project_name': 'name',
-                  'date(started)': 'started',
-                  'time(started)': 'hour',
-                  'date(stopped)': 'stopped',
-                  "strftime('%s',stopped)-strftime('%s', started)": 'lenght'
-                  }
+                  'tag.name': 'tag'}
         fields_str = ''
         for k in fields:
             r = (k + ' as \'' + fields[k] + '\', ')
@@ -151,11 +194,13 @@ class DataYear(object):
         fields_str = 'SELECT ' + fields_str[0:-2]
 
         table = ' FROM work'
-        constraint = ' WHERE date(started) >= \'2018-01-01\' '
-        order = 'ORDER BY datetime(started) ASC'
+        join1 = ' INNER JOIN work_tag ON work.id=work_id'
+        join2 = ' INNER JOIN tag ON tag.id=work_tag.tag_id'
+        constraint = ' WHERE date(started) >= \'2018-01-01\''
+        order = ' ORDER BY work.id ASC'
 
         # Perform the one-for-all query
-        query = fields_str + table + constraint + order
+        query = fields_str + table + join1 + join2 + constraint + order
 
         df = self.db.query(query)
         print('db hit')  # to measure how many times we hit the db
@@ -178,8 +223,8 @@ class DataYear(object):
             if cur_date >= start:
                 result.append(entry)
 
-        for row in result:
-            print(row.id, row.hour, row.name)
+        # for row in result:
+        #     print(row.id, row.hour, row.name)
 
         return result
 
@@ -197,22 +242,46 @@ class DataYear(object):
 
         return result
 
-    def BuLabelFilter(self, df):
-        """Filter bu data (from all BU labels)."""
+    def LabelFilter(self, df, label):
+        """Filter data with the selected label."""
+        # First, get the work ids with selected label
         tags = self.Labels()
         tag_id_list = []
-        for entry in tags:
-            if entry.name =0 'BuildUp':
-                
+        utils = Utils()
 
+        # Build the tag list
+        for entry in tags:
+            if entry.tag == label:
+                # print(entry.id, entry.tag)
+                tag_id_list.append(entry.id)
+
+        # for i in tag_id_list:
+        #     print(i)
+
+        # Now compare tag list with data frame using bin search
         result = []
+        count = 0
         for entry in df:
-            for id in prj_id:
-                if entry.project == id:
-                    result.append(entry)
+            count += 1
+            # print('testing', entry.id)
+            binary = utils.binary(tag_id_list, entry.id)
+            if binary[0] is True:
+                # print('adding', entry.id)
+                result.append(entry)
+                count = count + binary[1]
+
+        # this is 116 times larger
+        # for entry in df:
+        #     count += 1
+        #     for tag in tag_id_list:
+        #         count += 1
+        #         if entry.id == tag:
+        #             result.append(entry)
 
         for row in result:
             print(row.id, row.started, row.hour, row.name)
+
+        print('in', count, 'loops')
 
         return result
 
@@ -220,4 +289,4 @@ class DataYear(object):
 data = DataYear()
 df = data.Year()
 filtered = data.WeekFilter(df)
-data.BuProjectFilter(filtered)
+data.LabelFilter(filtered, 'Sport&Wellness')
