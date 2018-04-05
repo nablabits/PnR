@@ -207,8 +207,16 @@ class DataYear(object):
         # self.tdb.CleanUp()
         return df
 
+
+class Filters():
+    """Define useful filters for the data."""
+
+    def __init__(self, labels):
+        """Create the object."""
+        self.labels = labels
+
     def WeekFilter(self, df):
-        """Get current week's entries."""
+        """Filter current week's entries."""
         # first, determine last week
         today = date.today()
         delta = timedelta(days=-1)
@@ -245,7 +253,7 @@ class DataYear(object):
     def LabelFilter(self, df, label):
         """Filter data with the selected label."""
         # First, get the work ids with selected label
-        tags = self.Labels()
+        tags = self.labels
         tag_id_list = []
         utils = Utils()
 
@@ -285,8 +293,13 @@ class DataYear(object):
 
         return result
 
+    def ProjectFilter(self, df, project):
+        """Filter by project."""
+        pass
 
 data = DataYear()
 df = data.Year()
-filtered = data.WeekFilter(df)
-data.LabelFilter(filtered, 'Sport&Wellness')
+labels = data.Labels()
+filter = Filters(labels)
+filtered = filter.WeekFilter(df)
+filter.LabelFilter(filtered, 'BuildUp')
