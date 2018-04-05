@@ -243,7 +243,7 @@ class WeekOutputs:
     weekqueries = DataQueriesWeek()
 
     def WeekCurrentHours(self):
-        """Calculate the elapsed time since the beginning of the Week."""
+        """Calculate the awake time since the beginning of the Week."""
         now = datetime.timestamp(datetime.now())
         today = date.today()
         delta = timedelta(days=-1)
@@ -316,6 +316,7 @@ class WeekOutputs:
         bu_mid = self.SumTimes(df.qlt_mid_data)
         bu_lo = self.SumTimes(df.qlt_lo_data)
         opk = self.SumTimes(df.opk_data)
+        awake = self.WeekCurrentHours()
         tt = self.TimeTracked()
         st = self.SleepTime()
 
@@ -327,7 +328,7 @@ class WeekOutputs:
         bu_lo_perc = self.QualityPerc(bu_lo)
 
         # Bu target
-        bu_goal = YearOutputs().BuTarget(bu, tt)
+        bu_goal = YearOutputs().BuTarget(bu, awake)
 
         # since current year hours discount the sleep time
         corr = 1 - st / (self.WeekCurrentHours() + st)
@@ -338,7 +339,8 @@ class WeekOutputs:
 
         output = (('Week progress:'),
                   (' Sleep: ' + data_str(st_perc, st)),
-                  (' From Awake time:'),
+                  (' From Awake time: ' +
+                   str(round(awake, 2)) + 'h'),
                   ('  Time Tracked: ' + data_str(tt_perc, tt)),
                   ('  BuildUp: ' + data_str(bu_perc, bu) + bu_goal),
                   ('  Quality: ' +
@@ -436,7 +438,7 @@ class YearOutputs:
     yearqueries = DataQueriesYear()
 
     def YearCurrentHours(self):
-        """Calculate the elapsed time since the beginning of the year."""
+        """Calculate awake time since the beginning of the year."""
         now = datetime.timestamp(datetime.now())
         start = datetime.timestamp(datetime(2018, 1, 1, 0, 0, 0, 0))
         sleep = self.SleepTime()
@@ -475,10 +477,10 @@ class YearOutputs:
         result = round(100 * data / opk_time, 1)
         return result
 
-    def BuTarget(self, bu, tt):
+    def BuTarget(self, bu, awake):
         """Calculate the hours over/under the goal."""
-        goal = 20 * tt / 100
-        bu = bu * tt / 100
+        goal = 20 * awake / 100
+        # bu = bu * awake / 100
         diff = round(bu - goal, 2)
         if diff > 0:
             output = '+' + str(abs(diff)) + 'h over goal'
@@ -584,6 +586,7 @@ class YearOutputs:
         bu_lo = self.SumTimes(df.qlt_lo_data)
         opk = self.SumTimes(df.opk_data)
         opk_tries = self.SumTimes(df.opk_tries_data)
+        awake = self.YearCurrentHours()
         tt = self.TimeTracked()
         st = self.SleepTime()
 
@@ -598,8 +601,8 @@ class YearOutputs:
         opk_tries_perc = self.OpKPerc(opk_tries)
 
         # Bu target
-        bu_goal = self.BuTarget(bu_perc, tt)
-        bu_total_goal = self.BuTarget(bu_total_perc, tt)
+        bu_goal = self.BuTarget(bu, awake)
+        bu_total_goal = self.BuTarget(bu_total, awake)
 
         # Bu_core range
         week = date.today().isocalendar()[1]
