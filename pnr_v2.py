@@ -297,9 +297,9 @@ class Filters():
         """Filter by project."""
         pass
 
-data = DataYear()
-df = data.Year()
-labels = data.Labels()
-filter = Filters(labels)
-filtered = filter.WeekFilter(df)
-filter.LabelFilter(filtered, 'BuildUp')
+# data = DataYear()
+# df = data.Year()
+# labels = data.Labels()
+# filter = Filters(labels)
+# filtered = filter.WeekFilter(df)
+# filter.LabelFilter(filtered, 'BuildUp')
