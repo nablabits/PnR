@@ -1,12 +1,15 @@
 import unittest
 import pnr_v2 as pnr
 import os
+import records
+from datetime import date, datetime
 
 
 class TestUtils(unittest.TestCase):
     """Test utils."""
 
     def setUp(self):
+        """Get the test working."""
         self.utils = pnr.Utils()
         self.numberlist = (12, 15, 25, 70)
 
@@ -43,6 +46,7 @@ class TestOrigins(unittest.TestCase):
     """Test the file and the db."""
 
     def setUp(self):
+        """Get the testw working."""
         self.df = pnr.TrackDB()
         self.path = self.df.GetPath()
 
@@ -102,6 +106,114 @@ class TestOrigins(unittest.TestCase):
             os.mkdir(path)
         self.df.CleanUp()
         self.assertFalse(os.path.isdir(path))
+
+
+class TestData(unittest.TestCase):
+    """Test the data from the db."""
+
+    def setUp(self):
+        """Get the test working."""
+        self.df = pnr.DataYear()
+        self.year_data = self.df.Year()
+        self.labels = self.df.Labels()
+
+    def test_year_outputs_a_RecordCollection(self):
+        """Year() must output a class RecordCollection."""
+        self.assertIsInstance(self.year_data, records.RecordCollection)
+
+    def test_year_outputs_this_year_2018_data(self):
+        """Year() should output entries of year 2018."""
+        for item in self.year_data:
+            started = datetime.strptime(item.started, '%Y-%m-%d')
+            limit = date(2018, 1, 1)
+            off_bounds = False
+            if started.date() < limit:
+                off_bounds = True
+                break
+        self.assertFalse(off_bounds)
+
+    def test_year_integers(self):
+        """Year() id, project & lenght should output integers."""
+        idisint, projectisint, lenghtisint = True, True, True
+        for entry in self.year_data:
+            if not isinstance(entry.id, int):
+                idisint = False
+            if not isinstance(entry.project, int):
+                projectisint = False
+            if not isinstance(entry.lenght, int):
+                # since unfinished entries have no lenght, exclude this case
+                if entry.lenght is not None:
+                    lenghtisint = False
+
+        self.assertTrue(idisint)
+        self.assertTrue(projectisint)
+        self.assertTrue(lenghtisint)
+
+    def test_year_strings(self):
+        """Year().name, started & stopped should output strings."""
+        name, started, hour, stopped = True, True, True, True
+        for entry in self.year_data:
+            if not isinstance(entry.name, str):
+                # Deleted entries are left in the db without name.
+                if entry.name is not None:
+                    name = False
+            if not isinstance(entry.started, str):
+                started = False
+            if not isinstance(entry.hour, str):
+                hour = False
+            if not isinstance(entry.stopped, str):
+                # since unfinished entries have no stop time, exclude this case
+                if entry.stopped is not None:
+                    stopped = False
+
+        self.assertTrue(name)
+        self.assertTrue(started)
+        self.assertTrue(hour)
+        self.assertTrue(stopped)
+
+    def test_label_outputs_a_RecordCollection(self):
+        """Labels() must output a class RecordCollection."""
+        self.assertIsInstance(self.labels, records.RecordCollection)
+
+    def test_label_fields(self):
+        """Id should be int while tag should be str."""
+        id, tag = True, True
+        for entry in self.labels:
+            if not isinstance(entry.id, int):
+                id = False
+            if not isinstance(entry.tag, str):
+                tag = False
+        self.assertTrue(id)
+        self.assertTrue(tag)
+
+
+class TestFilters(unittest.TestCase):
+    """Test the filters for the data extacted."""
+
+    def setUp(self):
+        """Get the test working."""
+        self.df = pnr.DataYear()
+        self.year_data = self.df.Year()
+        self.labels = self.df.Labels()
+        self.filter = pnr.Filters(self.labels)
+
+    def test_filters_output_a_Record_list(self):
+        """Every filter must output a list of Records."""
+        week = self.filter.WeekFilter(self.year_data)
+        label = self.filter.LabelFilter(self.year_data, 'BuildUp')
+
+        # First, test wether is a list
+        self.assertIsInstance(week, list)
+        self.assertIsInstance(label, list)
+
+        # Now, they sould be an object records.Record
+        for row in week:
+            self.assertIsInstance(row, records.Record)
+        for row in label:
+            self.assertIsInstance(row, records.Record)
+
+    def test_filters_can_be_applied_in_any_order(self):
+        self.assertEqual(5, 4)
 
 if __name__ == '__main__':
     unittest.main()

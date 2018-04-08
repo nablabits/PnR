@@ -26,10 +26,12 @@ class Utils(object):
         count = 0
 
         if number < min:
-            print(number, 'under numberlist')
+            # DEBUG
+            # print(number, 'under numberlist')
             loop = False
         if number > max:
-            print(number, 'over numberlist')
+            # DEBUG
+            # print(number, 'over numberlist')
             loop = False
 
         while cur_value != number and loop:
@@ -38,22 +40,27 @@ class Utils(object):
             cur_value = numberlist[avg_idx]  # get current value
 
             if lo >= lenght or hi > lenght:
-                print('not in list')
+                # DEBUG
+                # print('not in list')
                 break
 
+            # DEBUG
             # print('testing', cur_value, number)
             if cur_value < number:
                 lo = avg_idx + 1
+                # DEBUG
                 # print("[oh, too low]")
                 # print(lo, hi, lenght)
                 if numberlist[lo] > numberlist[hi]:
                     break
             elif cur_value > number:
                 hi = avg_idx - 1
+                # DEBUG
                 # print("[oh, too high]")
                 if numberlist[lo] > numberlist[hi]:
                     break
             elif cur_value == number:
+                # DEBUG
                 # print('Numbers match!', cur_value, number)
                 result = True
                 break
@@ -119,7 +126,8 @@ class TrackDB:
         if checkfile is True:
             files_in_path = os.listdir(tmp_path)
             if len(files_in_path) > 1:
-                print(files_in_path)
+                # DEBUG
+                # print(files_in_path)
                 raise ValueError('more than one file in dir')
             dbfile = tmp_path + files_in_path[0]
         else:
@@ -203,13 +211,13 @@ class DataYear(object):
         query = fields_str + table + join1 + join2 + constraint + order
 
         df = self.db.query(query)
-        print('db hit')  # to measure how many times we hit the db
+        print('db hit (labels)')  # to measure how many times we hit the db
         # self.tdb.CleanUp()
         return df
 
 
 class Filters():
-    """Define useful filters for the data."""
+    """Define useful filters for the data extracted form db."""
 
     def __init__(self, labels):
         """Create the object."""
@@ -231,22 +239,9 @@ class Filters():
             if cur_date >= start:
                 result.append(entry)
 
+        # DEBUG:
         # for row in result:
         #     print(row.id, row.hour, row.name)
-
-        return result
-
-    def BuProjectFilter(self, df):
-        """Filter bu data (from BU projects only)."""
-        prj_id = (19, 20, 21, 22, 23, 24)
-        result = []
-        for entry in df:
-            for id in prj_id:
-                if entry.project == id:
-                    result.append(entry)
-
-        # for row in result:
-        #     print(row.id, row.started, row.hour, row.name)
 
         return result
 
@@ -263,6 +258,7 @@ class Filters():
                 # print(entry.id, entry.tag)
                 tag_id_list.append(entry.id)
 
+        # DEBUG
         # for i in tag_id_list:
         #     print(i)
 
@@ -278,6 +274,7 @@ class Filters():
                 result.append(entry)
                 count = count + binary[1]
 
+        # DEBUG larger loop
         # this is 116 times larger
         # for entry in df:
         #     count += 1
@@ -286,10 +283,10 @@ class Filters():
         #         if entry.id == tag:
         #             result.append(entry)
 
-        for row in result:
-            print(row.id, row.started, row.hour, row.name)
-
-        print('in', count, 'loops')
+        # DEBUG print result
+        # for row in result:
+        #     print(row.id, row.started, row.hour, row.name)
+        # print('in', count, 'loops')
 
         return result
 
