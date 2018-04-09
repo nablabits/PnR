@@ -198,22 +198,41 @@ class TestFilters(unittest.TestCase):
         self.filter = pnr.Filters(self.labels)
 
     def test_filters_output_a_Record_list(self):
-        """Every filter must output a list of Records."""
+        """Every filter must output a list of Records, so other filters can be
+        applied later on.
+        """
         week = self.filter.WeekFilter(self.year_data)
         label = self.filter.LabelFilter(self.year_data, 'BuildUp')
-
-        # First, test wether is a list
-        self.assertIsInstance(week, list)
-        self.assertIsInstance(label, list)
+        project = self.filter.ProjectFilter(self.year_data, 21)
 
         # Now, they sould be an object records.Record
         for row in week:
             self.assertIsInstance(row, records.Record)
         for row in label:
             self.assertIsInstance(row, records.Record)
+        for row in project:
+            self.assertIsInstance(row, records.Record)
 
     def test_filters_can_be_applied_in_any_order(self):
-        self.assertEqual(5, 4)
+        """Filters can be applied in any order & they must return the same."""
+        way1 = self.filter.WeekFilter(self.year_data)
+        way1 = self.filter.LabelFilter(way1, 'BuildUp')
+
+        way2 = self.filter.LabelFilter(self.year_data, 'BuildUp')
+        way2 = self.filter.WeekFilter(way2)
+
+        self.assertEqual(way1, way2)
+
+    def test_dayFilter_outputs_given_day_results(self):
+        """Only given day results are allowed."""
+        day = date(2018, 2, 3)
+        df = self.filter.DayFilter(self.year_data, day)
+        df_check = True
+        for entry in df:
+            curr_date = datetime.strptime(entry.started, '%Y-%m-%d').date()
+            if curr_date != day:
+                df_check = False
+        self.assertTrue(df_check)
 
 if __name__ == '__main__':
     unittest.main()

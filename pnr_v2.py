@@ -68,7 +68,7 @@ class Utils(object):
         return (result, count)
 
 
-class TrackDB:
+class TrackDB(object):
     """Get the last db file & unpack it into a tmp folder."""
 
     def GetPath(self):
@@ -216,7 +216,7 @@ class DataYear(object):
         return df
 
 
-class Filters():
+class Filters(object):
     """Define useful filters for the data extracted form db."""
 
     def __init__(self, labels):
@@ -243,6 +243,32 @@ class Filters():
         # for row in result:
         #     print(row.id, row.hour, row.name)
 
+        # Warning if filter have no effect
+        if not result:
+            print('Filter had no effect (week', start,
+                  ') restoring previous df')
+            result = df
+
+        return result
+
+    def DayFilter(self, df, day):
+        """Filter entries in a given day."""
+        if not isinstance(day, date):
+            raise TypeError('Date not recognized')
+        result = []
+        for entry in df:
+            curr_date = datetime.strptime(entry.started, '%Y-%m-%d').date()
+            if curr_date == day:
+                result.append(entry)
+
+        # DEBUG: results of the filter
+        # for row in result:
+        #     print(row.id, row.started, row.name)
+
+        if not result:
+            print('Filter had no effect (day', str(day),
+                  ') restoring previous df')
+            result = df
         return result
 
     def LabelFilter(self, df, label):
@@ -288,15 +314,58 @@ class Filters():
         #     print(row.id, row.started, row.hour, row.name)
         # print('in', count, 'loops')
 
+        # Warning if filter have no effect
+        if not result:
+            print('Filter had no effect (label', label,
+                  ') restoring previous df')
+            result = df
+
         return result
 
     def ProjectFilter(self, df, project):
         """Filter by project."""
-        pass
+        result = []
+        for entry in df:
+            if entry.project == project:
+                result.append(entry)
 
-# data = DataYear()
-# df = data.Year()
-# labels = data.Labels()
-# filter = Filters(labels)
-# filtered = filter.WeekFilter(df)
-# filter.LabelFilter(filtered, 'BuildUp')
+        # DEBUG:
+        # for row in result:
+        #     print(row.id, row.hour, row.name, row.project)
+
+        # Warning if filter have no effect
+        if not result:
+            print('Filter had no effect (project', project,
+                  ') restoring previous df')
+            result = df
+
+        return result
+
+
+class LastEntries(object):
+    """Print last entries for the daily summary."""
+
+    def __init__(self, df, filters):
+        self.df = df
+        self.filters = filters
+
+
+class Menu(object):
+    """Display the main menu."""
+
+    def __new__(self):
+        """Instantiate the data from db."""
+        db = DataYear()
+        labels = db.Labels()
+        df = db.Year()
+        filters = Filters(labels)
+
+        quick = False
+
+        # Quick view
+        option = input('Press [y] to perform a quick view (without backup). ')
+        if option == 'y':
+
+            quick = True
+
+show_menu = Menu()
