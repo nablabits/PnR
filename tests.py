@@ -41,6 +41,15 @@ class TestUtils(unittest.TestCase):
         result = self.utils.binary(numberlist, number)
         self.assertFalse(result[0])
 
+    def test_in_hours_returns_right_result(self):
+        """In hous should output the right result."""
+        result = self.utils.in_hours(220)
+        self.assertEqual(result, 0.06)
+
+    def test_sum_times_raises_an_error_if_data_not_appropiate(self):
+        """The input for sum times should be a RecordCollection."""
+        self.assertRaises(ValueError, self.utils.SumTimes(self.numberlist))
+
 
 class TestOrigins(unittest.TestCase):
     """Test the file and the db."""
@@ -259,6 +268,10 @@ class TestLastEntries(unittest.TestCase):
             self.assertIsInstance(row, list)
             for entry in row:
                 self.assertIsInstance(entry, records.Record)
+
+
+class TestWeek(unittest.TestCase):
+    pass
 
 if __name__ == '__main__':
     unittest.main()

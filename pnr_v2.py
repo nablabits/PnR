@@ -68,8 +68,48 @@ class Utils(object):
         return (result, count)
 
     def in_hours(self, number):
-        """Convert the given number (in seconds) in hours."""
+        """Convert the given number (in seconds) to hours."""
         result = round(number / 3600, 2)
+        return result
+
+    def SumTimes(self, df):
+        """Sum all the lenghts in a data frame."""
+        # first, check that the data is appropiate.
+        check = False
+        if isinstance(df, list):
+            if isinstance(df, records.Record):
+                check = True
+        elif isinstance(df, records.Record):
+            check = True
+        elif not check:
+            print(type(df))
+            raise ValueError('Can\'t sum this data')
+
+        # DEBUG:
+        # for row in df:
+        #     print(row.id, row.hour, row.name)
+
+        total = 0
+        for row in df:
+            if not row.name:
+                delta = 0
+            if not row.lenght:  # On going processes have no lenght
+                start = (row.started + ' ' + row.hour)
+                start = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
+                end = datetime.now()
+                delta = (end.timestamp() - start.timestamp())
+            else:
+                delta = row.lenght
+            total = total + delta
+        total = round(total, 2)
+        return total
+
+    def Percents(self, value, total):
+        """Calculate the ratio between two numbers."""
+        if total < value:
+            print(value, total)
+            # raise ValueError('Value is higher than total')
+        result = round(value * 100 / total, 2)
         return result
 
 
@@ -352,6 +392,7 @@ class LastEntries(object):
     """Print last entries for the daily summary."""
 
     def __init__(self, df, filters, days):
+        """Customize the object."""
         self.df = df
         self.filters = filters
         self.days = days
@@ -411,6 +452,88 @@ class LastEntries(object):
         return True
 
 
+class Week(object):
+    """Show how it's going the week."""
+
+    def __init__(self, df, filters):
+        """Customize the object."""
+        self.df = df
+        self.filters = filters
+        utils = Utils()
+        self.hours = utils.in_hours
+        self.sum = utils.SumTimes
+        self.perc = utils.Percents
+
+        self.Output()
+
+    def TotalHours(self):
+        """Calculate the elapsed hours in the week."""
+        now = datetime.timestamp(datetime.now())
+        today = date.today()
+        delta = timedelta(days=-1)
+        end = today
+
+        # reduce days until reach last monday
+        while end.isocalendar()[2] != 1:
+            end = end + delta
+        midnight = time(0, 0, 0, 0)
+        end = datetime.combine(end, midnight)
+        start = datetime.timestamp(end)
+        total_hours = (now - start) / 3600
+        return total_hours
+
+    def AwakeTime(self):
+        """Calculate the awake time since the beginning of the Week."""
+        sleep = self.SleepTime()
+
+        total_hours = self.TotalHours()
+        value = round(total_hours - sleep[0], 2)  # discount sleep
+        perc = self.perc(value, total_hours)
+        result = (value, perc, total_hours)
+        return result
+
+    def SleepTime(self):
+        """Output the hours & percent for sleep."""
+        value = self.filters.ProjectFilter(self.df, 38)
+        value = self.hours(self.sum(value))  # in hours
+        perc = self.perc(value, self.TotalHours())
+        result = (value, perc)
+        return result
+
+    def TimeTracked(self, awake, sleep):
+        """Output the hours & percent of time tracked."""
+        df = self.df
+        value = self.hours(self.sum(df))
+        value = value - sleep
+        perc = self.perc(value, awake)
+        result = (value, perc)
+        return result
+
+    def BuTime(self, awake, sleep):
+        """Output the hours & percent of time tracked."""
+        df = self.df
+        value = self.hours(self.sum(df))
+        value = value - sleep
+        perc = self.perc(value, awake)
+        result = (value, perc)
+        return result
+
+    def Output(self):
+        """Output the data."""
+        sleep = self.SleepTime()
+        awake = self.AwakeTime()
+        tt = self.TimeTracked(awake[0], sleep[0])
+        output = (sleep[1], sleep[0],
+                  awake[0],
+                  tt[1], tt[0],
+                  )
+        print(50 * '*', '\n' 'Week progress')
+        print(' Sleep: %s%% (%sh) \n'
+              ' From awake time (%sh): \n'
+              '  Time Tracked: %s%% (%sh)'
+              % output)
+
+
 class Menu(object):
     """Display the main menu."""
 
@@ -420,13 +543,16 @@ class Menu(object):
         labels = db.Labels()
         df = db.Year()
         filters = Filters(labels)
+        df_week = filters.WeekFilter(df)
 
         quick = False
 
         # Quick view
         option = input('Press [y] to perform a quick view (without backup). ')
         if option == 'y':
-            output = LastEntries(df, filters, days=3)
+            LastEntries(df, filters, days=3)
+            Week(df_week, filters)
+
             quick = True
 
 show_menu = Menu()
