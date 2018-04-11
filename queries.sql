@@ -1,5 +1,5 @@
 -- all Entries
-SELECT work.id as 'id', project as 'project', project_name as 'name',
+SELECT work.id as 'id', project as 'project', project_name as 'name', details,
   date(started) as 'started', time(started) as 'hour', date(stopped) as 'stopped',
   strftime('%s',stopped)-strftime('%s', started) as lenght
   FROM work

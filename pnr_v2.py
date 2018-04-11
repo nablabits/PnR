@@ -67,6 +67,11 @@ class Utils(object):
 
         return (result, count)
 
+    def in_hours(self, number):
+        """Convert the given number (in seconds) in hours."""
+        result = round(number / 3600, 2)
+        return result
+
 
 class TrackDB(object):
     """Get the last db file & unpack it into a tmp folder."""
@@ -167,6 +172,7 @@ class DataYear(object):
         fields = {'work.id': 'id',
                   'project': 'project',
                   'project_name': 'name',
+                  'details': 'details',
                   'date(started)': 'started',
                   'time(started)': 'hour',
                   'date(stopped)': 'stopped',
@@ -349,6 +355,7 @@ class LastEntries(object):
         self.df = df
         self.filters = filters
         self.days = days
+        self.hours = Utils().in_hours
 
         self.Output()
 
@@ -361,6 +368,7 @@ class LastEntries(object):
         for i in range(0, days):
             date_list.append(add_day)
             add_day = add_day + delta
+        date_list = date_list[::-1]
 
         # DEBUG: dates list
         # print(date_list)
@@ -371,7 +379,7 @@ class LastEntries(object):
         """Create a list with the data to be shown."""
         date_list = self.DateList()
         data_frame = []
-        
+
         for i in date_list:
             data_filtered = self.filters.DayFilter(self.df, i)
             data_frame.append(data_filtered)
@@ -379,9 +387,28 @@ class LastEntries(object):
         return data_frame
 
     def Output(self):
-        """Outputs the result."""
-        pass
-        # for i in range(0, days):
+        """Output the result."""
+        for i in self.DataFrame():
+            print(50 * '*')
+            print(i[0].started)
+            for row in i:
+                hour = row.hour[0:5]
+                if not row.lenght:
+                    lenght = 'On going'
+                else:
+                    lenght = str(self.hours(row.lenght)) + 'h'
+                name = row.name
+                if not row.details:
+                    details = 'No comments'
+                else:
+                    details = row.details
+                if not row.name:
+                    pass
+                else:
+                    data = (hour, lenght, name, details)
+                    print('%s; (%s) %s: %s' % data)
+
+        return True
 
 
 class Menu(object):
@@ -402,4 +429,4 @@ class Menu(object):
             output = LastEntries(df, filters, days=3)
             quick = True
 
-# show_menu = Menu()
+show_menu = Menu()
