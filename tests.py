@@ -192,10 +192,10 @@ class TestFilters(unittest.TestCase):
 
     def setUp(self):
         """Get the test working."""
-        self.df = pnr.DataYear()
-        self.year_data = self.df.Year()
-        self.labels = self.df.Labels()
-        self.filter = pnr.Filters(self.labels)
+        db = pnr.DataYear()
+        self.year_data = db.Year()
+        labels = db.Labels()
+        self.filter = pnr.Filters(labels)
 
     def test_filters_output_a_Record_list(self):
         """Every filter must output a list of Records, so other filters can be
@@ -233,6 +233,32 @@ class TestFilters(unittest.TestCase):
             if curr_date != day:
                 df_check = False
         self.assertTrue(df_check)
+
+
+class TestLastEntries(unittest.TestCase):
+    """Tests related to the last entries."""
+
+    def setUp(self):
+        """Get the test working."""
+        db = pnr.DataYear()
+        df = db.Year()
+        labels = db.Labels()
+        filters = pnr.Filters(labels)
+        self.lst_entr = pnr.LastEntries(df, filters, days=3)
+
+    def test_DateList_outputs_a_list_of_date_objects(self):
+        """The output for DateList should be a collection of date obj."""
+        date_list = self.lst_entr.DateList()
+        for entry in date_list:
+            self.assertIsInstance(entry, date)
+
+    def test_DataFrame_outputs_a_RecordCollection(self):
+        """The output for DataFrame should be a list of record obj."""
+        DataFrame = self.lst_entr.DataFrame()
+        for row in DataFrame:
+            self.assertIsInstance(row, list)
+            for entry in row:
+                self.assertIsInstance(entry, records.Record)
 
 if __name__ == '__main__':
     unittest.main()

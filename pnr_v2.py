@@ -345,9 +345,43 @@ class Filters(object):
 class LastEntries(object):
     """Print last entries for the daily summary."""
 
-    def __init__(self, df, filters):
+    def __init__(self, df, filters, days):
         self.df = df
         self.filters = filters
+        self.days = days
+
+        self.Output()
+
+    def DateList(self):
+        """Create a list with the dates to be shown."""
+        add_day = date.today()
+        delta = timedelta(days=-1)
+        days = self.days
+        date_list = []
+        for i in range(0, days):
+            date_list.append(add_day)
+            add_day = add_day + delta
+
+        # DEBUG: dates list
+        # print(date_list)
+
+        return date_list
+
+    def DataFrame(self):
+        """Create a list with the data to be shown."""
+        date_list = self.DateList()
+        data_frame = []
+        
+        for i in date_list:
+            data_filtered = self.filters.DayFilter(self.df, i)
+            data_frame.append(data_filtered)
+
+        return data_frame
+
+    def Output(self):
+        """Outputs the result."""
+        pass
+        # for i in range(0, days):
 
 
 class Menu(object):
@@ -365,7 +399,7 @@ class Menu(object):
         # Quick view
         option = input('Press [y] to perform a quick view (without backup). ')
         if option == 'y':
-
+            output = LastEntries(df, filters, days=3)
             quick = True
 
-show_menu = Menu()
+# show_menu = Menu()
