@@ -14,7 +14,10 @@ from math import floor
 
 
 class Utils(object):
-    """Define some useful algorithms."""
+    """Define some useful algorithms & common functions."""
+
+    def __init__(self, filters):
+        self.filters = filters
 
     def binary(self, numberlist, number):
         """Perform a number binary search in a given number list."""
@@ -110,6 +113,70 @@ class Utils(object):
             print(value, total)
             # raise ValueError('Value is higher than total')
         result = round(value * 100 / total, 2)
+        return result
+
+    def ProjectTime(self, df, project):
+        """Output the hours of a given project in a given time."""
+        value = 0
+        if isinstance(project, tuple) or isinstance(project, range):
+            for i in project:
+                df_filtered = self.filters.ProjectFilter(df, i)
+                addvalue = self.in_hours(self.SumTimes(df_filtered))  # in hour
+                # since a non-effect filter returns df again
+                if df == df_filtered:
+                    addvalue = 0
+                # print('adding %s hours from %s' % (addvalue, i))
+                value = addvalue + value
+            value = round(value, 2)
+        else:
+            df_filtered = self.filters.ProjectFilter(df, project)
+            # since a non-effect filter returns df again
+            if df == df_filtered:
+                addvalue = 0
+            value = self.in_hours(self.SumTimes(df_filtered))
+            # print('adding %s hours from %s' % (value, project))
+        return value
+
+    def AwakeTime(self, df, total_hours):
+        """Calculate the awake in a given period."""
+        sleep = self.ProjectTime(df, 38)
+        value = round(total_hours - sleep, 2)  # discount sleep
+        perc = self.Percents(value, total_hours)
+        result = (value, perc, total_hours)
+        return result
+
+    def TimeTracked(self, df, sleep):
+        """Output the hours of time tracked (of awake time)."""
+        value = self.in_hours(self.SumTimes(df))
+        value = round(value - sleep, 2)  # since df includes sleep time
+        return value
+
+    def BuTarget(self, bu, awake):
+        """Calculate the hours over/under the goal."""
+        goal = 20 * awake / 100
+        diff = round(bu - goal, 2)
+        if diff > 0:
+            output = '+' + str(abs(diff)) + 'h over goal'
+        else:
+            output = ' ' + str(abs(diff)) + 'h under goal'
+        return output
+
+    def Qualitiy(self, df, bu):
+        """Output the quality of BuildUp."""
+        df_hi = self.filters.LabelFilter(df, '1-hi')
+        df_mid = self.filters.LabelFilter(df, '2-mid')
+        df_lo = self.filters.LabelFilter(df, '3-lo')
+
+        sum_hi = self.in_hours(self.SumTimes(df_hi))
+        sum_mid = self.in_hours(self.SumTimes(df_mid))
+        sum_lo = self.in_hours(self.SumTimes(df_lo))
+
+        # print(sum_hi, sum_mid, sum_lo)
+
+        result = (self.Percents(sum_hi, bu),
+                  self.Percents(sum_mid, bu),
+                  self.Percents(sum_lo, bu))
+
         return result
 
 
@@ -291,8 +358,8 @@ class Filters(object):
 
         # Warning if filter have no effect
         if not result:
-            print('Filter had no effect (week', start,
-                  ') restoring previous df')
+            # print('Filter had no effect (week', start,
+            #       ') restoring previous df')
             result = df
 
         return result
@@ -312,8 +379,8 @@ class Filters(object):
         #     print(row.id, row.started, row.name)
 
         if not result:
-            print('Filter had no effect (day', str(day),
-                  ') restoring previous df')
+            # print('Filter had no effect (day', str(day),
+            #       ') restoring previous df')
             result = df
         return result
 
@@ -322,7 +389,7 @@ class Filters(object):
         # First, get the work ids with selected label
         tags = self.labels
         tag_id_list = []
-        utils = Utils()
+        utils = Utils(self)
 
         # Build the tag list
         for entry in tags:
@@ -339,7 +406,7 @@ class Filters(object):
         count = 0
         for entry in df:
             count += 1
-            # print('testing', entry.id)
+            # print('testing', entry.id, entry.started, entry.name)
             binary = utils.binary(tag_id_list, entry.id)
             if binary[0] is True:
                 # print('adding', entry.id)
@@ -362,8 +429,8 @@ class Filters(object):
 
         # Warning if filter have no effect
         if not result:
-            print('Filter had no effect (label', label,
-                  ') restoring previous df')
+            # print('Filter had no effect (label', label,
+            #       ') restoring previous df')
             result = df
 
         return result
@@ -381,8 +448,8 @@ class Filters(object):
 
         # Warning if filter have no effect
         if not result:
-            print('Filter had no effect (project', project,
-                  ') restoring previous df')
+            # print('Filter had no effect (project', project,
+            #       ') restoring previous df')
             result = df
 
         return result
@@ -396,7 +463,7 @@ class LastEntries(object):
         self.df = df
         self.filters = filters
         self.days = days
-        self.hours = Utils().in_hours
+        self.hours = Utils(filters).in_hours
 
         self.Output()
 
@@ -459,10 +526,15 @@ class Week(object):
         """Customize the object."""
         self.df = df
         self.filters = filters
-        utils = Utils()
+        utils = Utils(filters)
         self.hours = utils.in_hours
         self.sum = utils.SumTimes
         self.perc = utils.Percents
+        self.p_time = utils.ProjectTime
+        self.awake = utils.AwakeTime
+        self.tt = utils.TimeTracked
+        self.bu_goal = utils.BuTarget
+        self.qlty = utils.Qualitiy
 
         self.Output()
 
@@ -482,55 +554,43 @@ class Week(object):
         total_hours = (now - start) / 3600
         return total_hours
 
-    def AwakeTime(self):
-        """Calculate the awake time since the beginning of the Week."""
-        sleep = self.SleepTime()
-
-        total_hours = self.TotalHours()
-        value = round(total_hours - sleep[0], 2)  # discount sleep
-        perc = self.perc(value, total_hours)
-        result = (value, perc, total_hours)
-        return result
-
-    def SleepTime(self):
-        """Output the hours & percent for sleep."""
-        value = self.filters.ProjectFilter(self.df, 38)
-        value = self.hours(self.sum(value))  # in hours
-        perc = self.perc(value, self.TotalHours())
-        result = (value, perc)
-        return result
-
-    def TimeTracked(self, awake, sleep):
-        """Output the hours & percent of time tracked."""
-        df = self.df
-        value = self.hours(self.sum(df))
-        value = value - sleep
-        perc = self.perc(value, awake)
-        result = (value, perc)
-        return result
-
-    def BuTime(self, awake, sleep):
-        """Output the hours & percent of time tracked."""
-        df = self.df
-        value = self.hours(self.sum(df))
-        value = value - sleep
-        perc = self.perc(value, awake)
-        result = (value, perc)
-        return result
-
     def Output(self):
         """Output the data."""
-        sleep = self.SleepTime()
-        awake = self.AwakeTime()
-        tt = self.TimeTracked(awake[0], sleep[0])
-        output = (sleep[1], sleep[0],
+        df = self.df
+        awake = self.awake(df, self.TotalHours())
+
+        sleep = self.p_time(df, 38)
+        sleep_perc = self.perc(sleep, self.TotalHours())
+
+        tt = self.tt(df, sleep)
+        tt_perc = self.perc(tt, awake[0])
+
+        bu_projects = range(19, 25)
+        bu = self.p_time(df, bu_projects)
+        bu_perc = self.perc(bu, awake[0])
+        bu_goal = self.bu_goal(bu, awake[0])
+
+        opk_projects = range(26, 31)
+        opk = self.p_time(df, opk_projects)
+        opk_perc = self.perc(opk, awake[0])
+
+        qlty = self.qlty(df, bu)
+
+        output = (sleep_perc, sleep,
                   awake[0],
-                  tt[1], tt[0],
+                  tt_perc, tt,
+                  bu_perc, bu, bu_goal,
+                  qlty[0], qlty[1], qlty[2],
+                  opk_perc, opk,
                   )
+
         print(50 * '*', '\n' 'Week progress')
         print(' Sleep: %s%% (%sh) \n'
               ' From awake time (%sh): \n'
-              '  Time Tracked: %s%% (%sh)'
+              '  Time Tracked: %s%% (%sh) \n'
+              '  Bu Project time: %s%% (%sh) %s \n'
+              '  Bu Qlty: hi, %s%%; mid, %s%%; lo, %s%%  \n'
+              '  Opk Project time: %s%% (%sh)'
               % output)
 
 
