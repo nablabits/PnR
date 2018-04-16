@@ -13,6 +13,14 @@ from matplotlib import pyplot as plt
 from math import floor
 
 
+class Settings(object):
+    """Define some useful paths."""
+
+    home = '/home/davif/'
+    backup = []
+    db_file = home + 'Dropbox/Aplicaciones/Swipetimes Time Tracker/'
+
+
 class Utils(object):
     """Define some useful algorithms & common functions."""
 
@@ -21,6 +29,7 @@ class Utils(object):
 
     def binary(self, numberlist, number):
         """Perform a number binary search in a given number list."""
+        numberlist = sorted(numberlist, key=int)
         max, min = numberlist[-1], numberlist[0]
         lenght = len(numberlist) - 1
         lo, hi = 0, lenght  # lo-hi boundaries
@@ -29,13 +38,13 @@ class Utils(object):
         count = 0
 
         if number < min:
-            # DEBUG
-            # print(number, 'under numberlist')
+            # print(number, 'under numberlist')  # DEBUG
             loop = False
         if number > max:
-            # DEBUG
-            # print(number, 'over numberlist')
+            # print(number, 'over numberlist')  # DEBUG
             loop = False
+        if cur_value == number:
+            result = True
 
         while cur_value != number and loop:
             count += 1
@@ -43,12 +52,11 @@ class Utils(object):
             cur_value = numberlist[avg_idx]  # get current value
 
             if lo >= lenght or hi > lenght:
-                # DEBUG
-                # print('not in list')
+                # print('not in list')  # DEBUG
                 break
 
-            # DEBUG
-            # print('testing', cur_value, number)
+            # print('testing', cur_value, number)  # DEBUG
+
             if cur_value < number:
                 lo = avg_idx + 1
                 # DEBUG
@@ -58,13 +66,11 @@ class Utils(object):
                     break
             elif cur_value > number:
                 hi = avg_idx - 1
-                # DEBUG
-                # print("[oh, too high]")
+                # print("[oh, too high]")  # DEBUG
                 if numberlist[lo] > numberlist[hi]:
                     break
             elif cur_value == number:
-                # DEBUG
-                # print('Numbers match!', cur_value, number)
+                # print('Numbers match!', cur_value, number)  # DEBUG
                 result = True
                 break
 
@@ -109,10 +115,14 @@ class Utils(object):
 
     def Percents(self, value, total):
         """Calculate the ratio between two numbers."""
+        # value = self.in_hours(value)
         if total < value:
             print(value, total)
             # raise ValueError('Value is higher than total')
-        result = round(value * 100 / total, 2)
+        if total == 0:  # avoid division by 0
+            result = 0
+        else:
+            result = round(value * 100 / total, 2)
         return result
 
     def ProjectTime(self, df, project):
@@ -121,10 +131,11 @@ class Utils(object):
         if isinstance(project, tuple) or isinstance(project, range):
             for i in project:
                 df_filtered = self.filters.ProjectFilter(df, i)
-                addvalue = self.in_hours(self.SumTimes(df_filtered))  # in hour
                 # since a non-effect filter returns df again
                 if df == df_filtered:
                     addvalue = 0
+                else:
+                    addvalue = self.in_hours(self.SumTimes(df_filtered))
                 # print('adding %s hours from %s' % (addvalue, i))
                 value = addvalue + value
             value = round(value, 2)
@@ -167,10 +178,23 @@ class Utils(object):
         df_mid = self.filters.LabelFilter(df, '2-mid')
         df_lo = self.filters.LabelFilter(df, '3-lo')
 
-        sum_hi = self.in_hours(self.SumTimes(df_hi))
-        sum_mid = self.in_hours(self.SumTimes(df_mid))
-        sum_lo = self.in_hours(self.SumTimes(df_lo))
+        # for item in df_hi:
+        #     print(item.id, item.name, item.started)
 
+        if df_hi == df:
+            sum_hi = 0
+        else:
+            sum_hi = self.in_hours(self.SumTimes(df_hi))
+        if df_mid == df:
+            sum_mid = 0
+        else:
+            sum_mid = self.in_hours(self.SumTimes(df_mid))
+        if df_lo == df:
+            sum_lo = 0
+        else:
+            sum_lo = self.in_hours(self.SumTimes(df_lo))
+
+        # DEBUG
         # print(sum_hi, sum_mid, sum_lo)
 
         result = (self.Percents(sum_hi, bu),
@@ -183,9 +207,14 @@ class Utils(object):
 class TrackDB(object):
     """Get the last db file & unpack it into a tmp folder."""
 
+    def __init__(self):
+        settings = Settings()
+        self.db_path = settings.db_file
+
     def GetPath(self):
         """Select te path to the db file. Try first default."""
-        default = '/home/davif/Dropbox/Aplicaciones/Swipetimes Time Tracker/'
+        # default = '/home/davif/Dropbox/Aplicaciones/Swipetimes Time Tracker/'
+        default = self.db_path
         zip_dir = os.path.isdir(default)
         while zip_dir is False:
             default = input('Couldn\'t find that location, choose manually: ')
@@ -397,7 +426,7 @@ class Filters(object):
                 # print(entry.id, entry.tag)
                 tag_id_list.append(entry.id)
 
-        # DEBUG
+        # # DEBUG
         # for i in tag_id_list:
         #     print(i)
 
@@ -406,7 +435,10 @@ class Filters(object):
         count = 0
         for entry in df:
             count += 1
+
+            # DEBUG
             # print('testing', entry.id, entry.started, entry.name)
+
             binary = utils.binary(tag_id_list, entry.id)
             if binary[0] is True:
                 # print('adding', entry.id)
@@ -429,6 +461,7 @@ class Filters(object):
 
         # Warning if filter have no effect
         if not result:
+            # DEBUG
             # print('Filter had no effect (label', label,
             #       ') restoring previous df')
             result = df

@@ -10,7 +10,9 @@ class TestUtils(unittest.TestCase):
 
     def setUp(self):
         """Get the test working."""
-        self.utils = pnr.Utils()
+        labels = pnr.DataYear().Labels()
+        filters = pnr.Filters(labels)
+        self.utils = pnr.Utils(filters)
         self.numberlist = (12, 15, 25, 70)
 
     def test_binary_finds_number(self):
