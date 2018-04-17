@@ -22,13 +22,21 @@ class Settings(object):
 
 
 class Utils(object):
-    """Define some useful algorithms & common functions."""
+    """Define some useful algorithms & common functions.
+
+    This object's methods are used by both Week & Year outputs.
+    """
 
     def __init__(self, filters):
+        """Init the object."""
         self.filters = filters
 
     def binary(self, numberlist, number):
-        """Perform a number binary search in a given number list."""
+        """Perform a number binary search in a given number list.
+
+        Returns a list containing a bool (True if number is found) & a loop
+        count.
+        """
         numberlist = sorted(numberlist, key=int)
         max, min = numberlist[-1], numberlist[0]
         lenght = len(numberlist) - 1
@@ -45,6 +53,7 @@ class Utils(object):
             loop = False
         if cur_value == number:
             result = True
+            loop = False
 
         while cur_value != number and loop:
             count += 1
@@ -77,12 +86,18 @@ class Utils(object):
         return (result, count)
 
     def in_hours(self, number):
-        """Convert the given number (in seconds) to hours."""
+        """Convert the given number to hours.
+
+        Returns a rounded float. Input in seconds
+        """
         result = round(number / 3600, 2)
         return result
 
     def SumTimes(self, df):
-        """Sum all the lenghts in a data frame."""
+        """Sum all the lenghts in a data frame.
+
+        Outputs a rounded float.
+        """
         # first, check that the data is appropiate.
         check = False
         if isinstance(df, list):
@@ -114,8 +129,10 @@ class Utils(object):
         return total
 
     def Percents(self, value, total):
-        """Calculate the ratio between two numbers."""
-        # value = self.in_hours(value)
+        """Calculate the ratio between two numbers.
+
+        Outputs a rounded float. Avoids percents over 100.
+        """
         if total < value:
             print(value, total)
             # raise ValueError('Value is higher than total')
@@ -126,7 +143,13 @@ class Utils(object):
         return result
 
     def ProjectTime(self, df, project):
-        """Output the hours of a given project in a given time."""
+        """Output the hours of a given project in a given time.
+
+        Generic function to be applied to any df & any project. The project
+        input could be a tuple a range or a single number.
+        Outputs a rounded float (since sum_entries outputs so) or 0 if
+        filter has no effect.
+        """
         value = 0
         if isinstance(project, tuple) or isinstance(project, range):
             for i in project:
@@ -136,7 +159,7 @@ class Utils(object):
                     addvalue = 0
                 else:
                     addvalue = self.in_hours(self.SumTimes(df_filtered))
-                # print('adding %s hours from %s' % (addvalue, i))
+                # print('adding %s hours from %s' % (addvalue, i))  # DEBUG
                 value = addvalue + value
             value = round(value, 2)
         else:
@@ -145,25 +168,38 @@ class Utils(object):
             if df == df_filtered:
                 addvalue = 0
             value = self.in_hours(self.SumTimes(df_filtered))
-            # print('adding %s hours from %s' % (value, project))
+            # print('adding %s hours from %s' % (value, project))  # DEBUG
         return value
 
     def AwakeTime(self, df, total_hours):
-        """Calculate the awake in a given period."""
+        """Calculate the awake in a given period.
+
+        Awake time is the base to calculate percents.
+        Outputs a list containing: rounded float for the hours
+        & percent over total.
+        """
         sleep = self.ProjectTime(df, 38)
         value = round(total_hours - sleep, 2)  # discount sleep
         perc = self.Percents(value, total_hours)
-        result = (value, perc, total_hours)
+        result = (value, perc)
         return result
 
     def TimeTracked(self, df, sleep):
-        """Output the hours of time tracked (of awake time)."""
+        """Output the hours of time tracked.
+
+        Returns a rounded float (since SumTimes does so).
+        """
         value = self.in_hours(self.SumTimes(df))
         value = round(value - sleep, 2)  # since df includes sleep time
         return value
 
     def BuTarget(self, bu, awake):
-        """Calculate the hours over/under the goal."""
+        """Calculate the hours over/under the goal.
+
+        The goal or this year is 20% BuildUp so, this fn lets visualize the
+        progress of the goal.
+        Returns a string like '+20h over goal'
+        """
         goal = 20 * awake / 100
         diff = round(bu - goal, 2)
         if diff > 0:
@@ -173,11 +209,15 @@ class Utils(object):
         return output
 
     def Qualitiy(self, df, bu):
-        """Output the quality of BuildUp."""
+        """Output the quality of BuildUp.
+
+        Returns a list containing the percents of quality.
+        """
         df_hi = self.filters.LabelFilter(df, '1-hi')
         df_mid = self.filters.LabelFilter(df, '2-mid')
         df_lo = self.filters.LabelFilter(df, '3-lo')
 
+        # DEBUG
         # for item in df_hi:
         #     print(item.id, item.name, item.started)
 
@@ -208,12 +248,15 @@ class TrackDB(object):
     """Get the last db file & unpack it into a tmp folder."""
 
     def __init__(self):
+        """Init the object."""
         settings = Settings()
         self.db_path = settings.db_file
 
     def GetPath(self):
-        """Select te path to the db file. Try first default."""
-        # default = '/home/davif/Dropbox/Aplicaciones/Swipetimes Time Tracker/'
+        """Select te path to the db file. Try first default.
+
+        Outputs a string with a valid path.
+        """
         default = self.db_path
         zip_dir = os.path.isdir(default)
         while zip_dir is False:
@@ -222,7 +265,10 @@ class TrackDB(object):
         return default
 
     def GetFile(self):
-        """Get the last zip file from the path."""
+        """Get the last zip file from the path.
+
+        Outputs a string with the name of the latest file in GetPath.
+        """
         path = self.GetPath()
         file_namelist = []
         file_timelist = []
@@ -609,12 +655,16 @@ class Week(object):
 
         qlty = self.qlty(df, bu)
 
+        shared = self.p_time(df, 31)
+        shared_perc = self.perc(shared, awake[0])
+
         output = (sleep_perc, sleep,
                   awake[0],
                   tt_perc, tt,
                   bu_perc, bu, bu_goal,
                   qlty[0], qlty[1], qlty[2],
                   opk_perc, opk,
+                  shared_perc, shared,
                   )
 
         print(50 * '*', '\n' 'Week progress')
@@ -623,7 +673,8 @@ class Week(object):
               '  Time Tracked: %s%% (%sh) \n'
               '  Bu Project time: %s%% (%sh) %s \n'
               '  Bu Qlty: hi, %s%%; mid, %s%%; lo, %s%%  \n'
-              '  Opk Project time: %s%% (%sh)'
+              '  Opk Project time: %s%% (%sh) \n'
+              '  Shared time: %s%% (%sh)'
               % output)
 
 
