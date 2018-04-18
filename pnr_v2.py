@@ -281,7 +281,10 @@ class TrackDB(object):
         return zipfile
 
     def FileCheck(self):
-        """Check if the zip is already extracted."""
+        """Check if the zip is already extracted.
+
+        Returns a bool, true if the file is already extracted.
+        """
         # first, check if folder exists
         zip_path = self.GetPath()
         tmp = zip_path + 'tmp/'
@@ -305,7 +308,11 @@ class TrackDB(object):
         return exists
 
     def GetDB(self):
-        """Extract the DB into a temporally folder."""
+        """Extract the DB into a temporally folder.
+
+        The db (sqlite) is compressed inside a zip file, so extract from there.
+        Returns a string with the file name & its full path.
+        """
         # fist, check if the file alredy exists
         checkfile = self.FileCheck()
         path = self.GetPath()
@@ -331,14 +338,18 @@ class TrackDB(object):
         return dbfile
 
     def CleanUp(self):
-        """Clean de tmp dir after use."""
+        """Clean de tmp dir after use. Returns a confirmation msg."""
         tmp_path = self.GetPath() + 'tmp/'
         shutil.rmtree(tmp_path)
-        print('tmp folder deleted once used')
+        msg = print('Tmp folder deleted once used')
+        return msg
 
 
 class DataYear(object):
-    """Group the year data in an object."""
+    """Group the year data in an object.
+
+    We'll perform a single call to the db and then manipulate the data.
+    """
 
     def __init__(self):
         """Start the object."""
@@ -346,11 +357,14 @@ class DataYear(object):
         tdb = TrackDB()
         zipfile = tdb.GetDB()
         self.db = records.Database('sqlite:///' + zipfile)
-        tdb.CleanUp()
+        tdb.CleanUp()  # & Clean the tmp folder.
 
     def Year(self):
-        """Create an object with all the data of the year."""
-        # Elements of the query
+        """Create an object with all the data of the year.
+
+        Returns a DataFrame (df) with all the entries in the year.
+        """
+        # Fields of the query
         fields = {'work.id': 'id',
                   'project': 'project',
                   'project_name': 'name',
@@ -360,6 +374,8 @@ class DataYear(object):
                   'date(stopped)': 'stopped',
                   "strftime('%s',stopped)-strftime('%s', started)": 'lenght'
                   }
+
+        # Build the field string
         fields_str = ''
         for k in fields:
             r = (k + ' as \'' + fields[k] + '\', ')
@@ -376,13 +392,19 @@ class DataYear(object):
         # The raw query
         df = self.db.query(query)
         print('db hit')  # to measure how many times we hit the db
-        # self.tdb.CleanUp()
         return df
 
     def Labels(self):
-        """Create an object with the labels per id."""
+        """Create an object with the labels per id.
+
+        Labels are in a different table, so list them to be applied on
+        different filters. Returns a DataFrame (df) with all of them.
+        """
+        # Fields in the query
         fields = {'work.id': 'id',
                   'tag.name': 'tag'}
+
+        # Build field string.
         fields_str = ''
         for k in fields:
             r = (k + ' as \'' + fields[k] + '\', ')
@@ -400,20 +422,55 @@ class DataYear(object):
 
         df = self.db.query(query)
         print('db hit (labels)')  # to measure how many times we hit the db
-        # self.tdb.CleanUp()
         return df
 
 
 class Filters(object):
-    """Define useful filters for the data extracted form db."""
+    """Define useful filters for the data extracted from db.
+
+    Filters return always a list of records.
+    """
 
     def __init__(self, labels):
-        """Create the object."""
+        """Create the object. Labels are needed to build the label filter."""
         self.labels = labels
 
+    def DfType(self, df, filter):
+        """Check the df as input or output.
+
+        Raise an error if input/output data have errors. Allowed types are:
+        records.RecordCollection or a list containing records.Record entries.
+        Filter is used to trace where are the errors.
+        """
+        result = None
+        if isinstance(df, list):
+            error = False
+            for row in df:
+                if not isinstance(row, records.Record):
+                    error = True
+            if error:
+                raise('The list of %s contains mixed data' % filter)
+            # result = print('list', filter)  # DEBUG
+
+        elif isinstance(df, records.RecordCollection):
+            pass
+            # result = print('Records collection', filter)  # DEBUG
+
+        else:
+            result = print(type(df), filter)
+
+        return result
+
     def WeekFilter(self, df):
-        """Filter current week's entries."""
-        # first, determine last week
+        """Filter current week's entries.
+
+        This filter checks the current week and filters the entries that match
+        that date. Returns a list of records.Record.
+        """
+        # First check the df
+        self.DfType(df, filter='(Week Filter, input)')
+
+        # Now, determine last week
         today = date.today()
         delta = timedelta(days=-1)
         start = today
@@ -431,18 +488,30 @@ class Filters(object):
         # for row in result:
         #     print(row.id, row.hour, row.name)
 
-        # Warning if filter have no effect
+        # Warning if filter has no effect
         if not result:
+            # DEBUG
             # print('Filter had no effect (week', start,
             #       ') restoring previous df')
             result = df
 
+        # Check output
+        self.DfType(result, filter='(Week Filter, output)')
+
         return result
 
     def DayFilter(self, df, day):
-        """Filter entries in a given day."""
+        """Filter entries in a given day.
+
+        This function filters the entries started in the current day. Returns a
+        list of records.Record
+        """
+        # First check the df
+        self.DfType(df, filter='(Day Filter, input)')
+
         if not isinstance(day, date):
             raise TypeError('Date not recognized')
+
         result = []
         for entry in df:
             curr_date = datetime.strptime(entry.started, '%Y-%m-%d').date()
@@ -454,14 +523,25 @@ class Filters(object):
         #     print(row.id, row.started, row.name)
 
         if not result:
+            # DEBUG
             # print('Filter had no effect (day', str(day),
             #       ') restoring previous df')
             result = df
+
+        # Check output
+        self.DfType(result, filter='(Day Filter, output)')
         return result
 
     def LabelFilter(self, df, label):
-        """Filter data with the selected label."""
-        # First, get the work ids with selected label
+        """Filter data with the selected label.
+
+        This function filters the entries which match with the given label
+        using a binary search. Outputs a list of records.Record.
+        """
+        # first check the df
+        self.DfType(df, filter='(Label Filter, input)')
+
+        # Get the work ids with selected label
         tags = self.labels
         tag_id_list = []
         utils = Utils(self)
@@ -469,10 +549,10 @@ class Filters(object):
         # Build the tag list
         for entry in tags:
             if entry.tag == label:
-                # print(entry.id, entry.tag)
+                # print(entry.id, entry.tag)  # DEBUG
                 tag_id_list.append(entry.id)
 
-        # # DEBUG
+        # DEBUG
         # for i in tag_id_list:
         #     print(i)
 
@@ -491,15 +571,6 @@ class Filters(object):
                 result.append(entry)
                 count = count + binary[1]
 
-        # DEBUG larger loop
-        # this is 116 times larger
-        # for entry in df:
-        #     count += 1
-        #     for tag in tag_id_list:
-        #         count += 1
-        #         if entry.id == tag:
-        #             result.append(entry)
-
         # DEBUG print result
         # for row in result:
         #     print(row.id, row.started, row.hour, row.name)
@@ -512,10 +583,18 @@ class Filters(object):
             #       ') restoring previous df')
             result = df
 
+        # Check type of df DEBUG
+        self.DfType(result, filter='(Label Filter, output)')
         return result
 
     def ProjectFilter(self, df, project):
-        """Filter by project."""
+        """Filter by project.
+
+        This function filters the df which match with a given project. Project
+        input should be an int. Returns a list of records.Record.
+        """
+        self.DfType(df, filter='(Project Filter)')  # Check type of df DEBUG
+
         result = []
         for entry in df:
             if entry.project == project:
@@ -531,6 +610,8 @@ class Filters(object):
             #       ') restoring previous df')
             result = df
 
+        # Check type of df DEBUG
+        # self.DfType(result, filter='(Project Filter, output)')
         return result
 
 
@@ -544,15 +625,18 @@ class LastEntries(object):
         self.days = days
         self.hours = Utils(filters).in_hours
 
+        # return the entries
         self.Output()
 
     def DateList(self):
-        """Create a list with the dates to be shown."""
+        """Create a list with the dates to be shown.
+
+        Returns a list of date.datetime objects.
+        """
         add_day = date.today()
         delta = timedelta(days=-1)
-        days = self.days
         date_list = []
-        for i in range(0, days):
+        for i in range(0, self.days):
             date_list.append(add_day)
             add_day = add_day + delta
         date_list = date_list[::-1]
@@ -563,22 +647,30 @@ class LastEntries(object):
         return date_list
 
     def DataFrame(self):
-        """Create a list with the data to be shown."""
+        """Create a list with the data to be shown.
+
+        Returns a list that contains n lists (one per day) each one with a
+        records.Record, since filters always output a list.
+        """
         date_list = self.DateList()
-        data_frame = []
+        df = []
 
         for i in date_list:
             data_filtered = self.filters.DayFilter(self.df, i)
-            data_frame.append(data_filtered)
+            df.append(data_filtered)
 
-        return data_frame
+        return df
 
     def Output(self):
-        """Output the result."""
-        for i in self.DataFrame():
+        """Output the result.
+
+        Take each one of the days in the df and print the entries. The input is
+        list with n lists (one per day) each one with a records.Record.
+        """
+        for day in self.DataFrame():
             print(50 * '*')
-            print(i[0].started)
-            for row in i:
+            print(day[0].started)
+            for row in day:
                 hour = row.hour[0:5]
                 if not row.lenght:
                     lenght = 'On going'
