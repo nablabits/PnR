@@ -105,6 +105,8 @@ class Utils(object):
                 check = True
         elif isinstance(df, records.Record):
             check = True
+        elif isinstance(df, records.RecordCollection):
+            check = True
         elif not check:
             print(type(df))
             raise ValueError('Can\'t sum this data')
@@ -169,6 +171,21 @@ class Utils(object):
                 addvalue = 0
             value = self.in_hours(self.SumTimes(df_filtered))
             # print('adding %s hours from %s' % (value, project))  # DEBUG
+        return value
+
+    def LabelTime(self, df, label):
+        """Output the hours of a given label in a given time.
+
+        Generic function to be applied to any df & any label. For the moment
+        the label's input should be a string with right one label name.
+        Returns a rounded float (since sum_entries outputs so), or 0 if filter
+        has no effect.
+        """
+        value = 0
+        df_filtered = self.filters.LabelFilter(df, label)
+        # since a non-effect filter returns df again
+        if df != df_filtered:
+            value = self.in_hours(self.SumTimes(df_filtered))
         return value
 
     def AwakeTime(self, df, total_hours):
@@ -242,7 +259,6 @@ class Utils(object):
                   self.Percents(sum_lo, bu))
 
         return result
-
 
 class TrackDB(object):
     """Get the last db file & unpack it into a tmp folder."""
@@ -449,7 +465,7 @@ class Filters(object):
                 if not isinstance(row, records.Record):
                     error = True
             if error:
-                raise('The list of %s contains mixed data' % filter)
+                raise ValueError('The list of %s contains mixed data' % filter)
             # result = print('list', filter)  # DEBUG
 
         elif isinstance(df, records.RecordCollection):
@@ -614,6 +630,37 @@ class Filters(object):
         # self.DfType(result, filter='(Project Filter, output)')
         return result
 
+    def StartFilter(self, df, start):
+        """Filter entries from a start date.
+
+        This function filters the data from the start date up to today.
+        """
+        # First check the df
+        self.DfType(df, filter='(Day Filter, input)')
+
+        if not isinstance(start, date):
+            raise TypeError('Date not recognized')
+
+        result = []
+        for entry in df:
+            curr_date = datetime.strptime(entry.started, '%Y-%m-%d').date()
+            if curr_date >= start:
+                result.append(entry)
+
+        # DEBUG: results of the filter
+        # for row in result:
+        #     print(row.id, row.started, row.name)
+
+        if not result:
+            # DEBUG
+            # print('Filter had no effect (day', str(day),
+            #       ') restoring previous df')
+            result = df
+
+        # Check output
+        self.DfType(result, filter='(Day Filter, output)')
+        return result
+
 
 class LastEntries(object):
     """Print last entries for the daily summary."""
@@ -710,7 +757,10 @@ class Week(object):
         self.Output()
 
     def TotalHours(self):
-        """Calculate the elapsed hours in the week."""
+        """Calculate the elapsed hours in the week.
+
+        Outputs a rounded float with the hours elapsed since monday @0:00.
+        """
         now = datetime.timestamp(datetime.now())
         today = date.today()
         delta = timedelta(days=-1)
@@ -722,11 +772,14 @@ class Week(object):
         midnight = time(0, 0, 0, 0)
         end = datetime.combine(end, midnight)
         start = datetime.timestamp(end)
-        total_hours = (now - start) / 3600
+        total_hours = round((now - start) / 3600, 2)
         return total_hours
 
     def Output(self):
-        """Output the data."""
+        """Output the data.
+
+        Using the commom functions, output quantities and percents.
+        """
         df = self.df
         awake = self.awake(df, self.TotalHours())
 
@@ -770,6 +823,139 @@ class Week(object):
               % output)
 
 
+class Year(object):
+    """Show how it's going the Year."""
+
+    def __init__(self, df, filters):
+        """Customize the object."""
+        self.df = df
+        self.filters = filters
+        utils = Utils(filters)
+        self.hours = utils.in_hours
+        self.sum = utils.SumTimes
+        self.perc = utils.Percents
+        self.p_time = utils.ProjectTime
+        self.awake = utils.AwakeTime
+        self.tt = utils.TimeTracked
+        self.bu_goal = utils.BuTarget
+        self.tag = utils.LabelTime
+        self.qlty = utils.Qualitiy
+
+        self.Output()
+
+    def TotalHours(self):
+        """Calculate the elapsed hours in the Year.
+
+        Outputs a rounded float with the hours elapsed since Jan 1 00:00.
+        """
+        now = datetime.timestamp(datetime.now())
+        start = datetime(2018, 1, 1, 0, 0, 0, 0)
+        start = datetime.timestamp(start)
+        total_hours = round((now - start) / 3600, 2)
+        return total_hours
+
+    def Output(self):
+        """Output the data.
+
+        Using the commom functions, output quantities and percents.
+        """
+        # db & awake.
+        df = self.df
+        awake = self.awake(df, self.TotalHours())
+
+        # Sleep.
+        sleep = self.p_time(df, 38)
+        sleep_perc = self.perc(sleep, self.TotalHours())
+
+        # Time Tracked
+        tt = self.tt(df, sleep)
+        tt_perc = self.perc(tt, awake[0])
+
+        # BuildUp project Related
+        bu_projects = range(19, 25)
+        bu = self.p_time(df, bu_projects)
+        bu_perc = self.perc(bu, awake[0])
+        bu_goal = self.bu_goal(bu, awake[0])
+
+        qlty = self.qlty(df, bu)
+
+        # BuildUp tag
+        bu_tag = self.tag(df, 'BuildUp')
+        bu_tag_perc = self.perc(bu_tag, awake[0])
+        bu_tag_goal = self.bu_goal(bu_tag, awake[0])
+
+        core = self.tag(df, 'Core')
+        week = date.today().isocalendar()[1]
+        corerange = (week * 18, week * 20)
+
+        # OpK
+        opk_projects = range(26, 31)
+        opk = self.p_time(df, opk_projects)
+        opk_perc = self.perc(opk, awake[0])
+        opk_tries = self.p_time(df, 28)
+        opk_ratio = round(opk_tries * 100 / opk, 2)
+
+        # Shared Time
+        shared = self.p_time(df, 31)
+        shared_perc = self.perc(shared, awake[0])
+
+        output = (sleep_perc, sleep,
+                  awake[0],
+                  tt_perc, tt,
+                  bu_perc, bu, bu_goal,
+                  qlty[0], qlty[1], qlty[2],
+                  bu_tag_perc, bu_tag, bu_tag_goal,
+                  core, corerange,
+                  opk_perc, opk,
+                  opk_ratio,
+                  shared_perc, shared,
+                  )
+
+        print(50 * '*', '\n' 'Year progress')
+        print(' Sleep: %s%% (%sh) \n'
+              ' From awake time (%sh): \n'
+              '  Time Tracked: %s%% (%sh) \n'
+              '  Bu Project time: %s%% (%sh) %s \n'
+              '  Bu Qlty: hi, %s%%; mid, %s%%; lo, %s%%  \n'
+              '  BuildUp Total: %s%% (%sh) %s \n'
+              '  Core Range: %sh %s \n'
+              '  Opk Project time: %s%% (%sh) \n'
+              '  Opk Ratio (I+D): %s%% \n'
+              '  Shared time: %s%% (%sh)'
+              % output)
+
+
+class Graph(object):
+    """Show powerful graphs to visualize the year progress."""
+
+    def __init__(self, df):
+        """Customize the object."""
+        self.df = df
+        a = [(1,2,3),(4,3,5,7)]
+        self.PlotIt(a)
+
+    def PlotIt(self, data):
+        """Output the plot.
+
+        Transforms every item in data (list of floats) into a line in the plot.
+        """
+        # Check the data.
+        if not isinstance(data, tuple):
+            if not isinstance(data, list):
+                print(type(data))
+                raise ValueError('data not valid')
+
+        for row in data:
+            for item in row:
+                if not isinstance(item, float):
+                    print(type(item))
+                    raise ValueError('Data contains no floats')
+
+        xvalues = [day for day in range(0, len(data))]  # x-axis values
+        plt.axhline(y=20, linewidth='2')
+        plt.ylabel('Hours')
+
+
 class Menu(object):
     """Display the main menu."""
 
@@ -780,14 +966,18 @@ class Menu(object):
         df = db.Year()
         filters = Filters(labels)
         df_week = filters.WeekFilter(df)
+        start = date(2018, 1, 20)
+        df_graph = filters.StartFilter(df, start)
 
         quick = False
 
         # Quick view
         option = input('Press [y] to perform a quick view (without backup). ')
         if option == 'y':
-            LastEntries(df, filters, days=3)
+            LastEntries(df, filters, days=5)
             Week(df_week, filters)
+            Year(df, filters)
+            Graph(df_graph)
 
             quick = True
 

@@ -671,10 +671,10 @@ class Graphig(object):
         #         print(i, value, agg_bu.index(i), agg_bu_total.index(value))
 
         # finally, create the graph
-        day_no = [day * 1 for day in range(0, len(days))]
-        last = -(len(days) - 20)  # first das are quite irregular
+        day_no = [day for day in range(0, len(days))]
+        last = -(len(days) - 20)  # first days are quite irregular
         plt.axhline(y=20, linewidth='2')
-        plt.ylabel('BuildUp Hours')
+        plt.ylabel('Hours')
         plt.grid(color='lime', linestyle='-', linewidth='0.5')
         plt.plot(day_no[last:], agg_ratio[last:], label='BU Projects')
         plt.plot(day_no[last:], agg_ratio_total[last:], label='BU total')
