@@ -20,6 +20,9 @@ class Settings(object):
     backup = []
     db_file = home + 'Dropbox/Aplicaciones/Swipetimes Time Tracker/'
 
+    # Graph start date
+    start_graph = date(2018, 1, 20)
+
 
 class Utils(object):
     """Define some useful algorithms & common functions.
@@ -259,6 +262,7 @@ class Utils(object):
                   self.Percents(sum_lo, bu))
 
         return result
+
 
 class TrackDB(object):
     """Get the last db file & unpack it into a tmp folder."""
@@ -927,33 +931,187 @@ class Year(object):
 
 class Graph(object):
     """Show powerful graphs to visualize the year progress."""
+    start = date(2018, 1, 20)
 
-    def __init__(self, df):
+    def __init__(self, df, filters):
         """Customize the object."""
         self.df = df
-        a = [(1,2,3),(4,3,5,7)]
-        self.PlotIt(a)
+        self.filters = filters
+        bu_ids = (19, 25)
+        bu = self.PrepareData(df, bu_ids, label='BuildUp')
+
+        to_plot = (bu,)
+        self.PlotIt(to_plot)
+
+    def DayList(self):
+        """Create a list with all the dates since 20-01-2018.
+
+        The df used for the graph starts on jan 20 so dates must start then.
+        Outputs a list of datetime.date objects.
+        """
+        start = Settings.start_graph
+        end = date.today()
+        delta = timedelta(days=1)
+        result = []
+        while start <= end:
+            result.append(start)
+            start = start + delta
+        return result
+
+    def PerDay(self, day_list, data):
+        """List of elapsed time in the activity per day (& could be 0).
+
+        Outputs a list of float values.
+        """
+        result = []
+        count = 0
+        for day in day_list:
+            count += 1
+            have_entry = False
+            lenght = 0
+            for entry in data:
+                # print(day, entry.day, entry.lenght)
+
+
+                if entry.started == str(day):
+                    count += 1
+                    have_entry = True
+                    if not entry.lenght:
+                        lenght = lenght + 0
+                    else:
+                        lenght = lenght + entry.lenght
+                    # print(day, entry.started, entry.lenght)
+                    # break
+
+            if have_entry is False:
+                result.append(0)
+                print(day, 0)
+            else:
+                result.append(lenght)
+        # print(count, 'loops')
+        result = [float(i) for i in result]  # convert all items into floats
+
+        # DEBUG: print list
+        # for i in result:
+        #     print(i)
+
+        return result
+
+    def Aggregation(self, values):
+        """Get the acumulated hours per day. Outputs a list of floats."""
+        idx = 1
+        result = []
+        for i in values:
+            r = sum(values[0:idx])
+            result.append(r)
+            idx += 1
+        # print(result)
+        return result
+
+    def AwakeData(self, df):
+        """Get a list of awake hours.
+
+        Awake time is used for calculate the ratio of activities, so it must be
+        calculated once.
+        """
+        sleep = self.filters.ProjectFilter(df, 38)
+        day_list = self.DayList()
+        sleep_per_day = self.PerDay(day_list, sleep)
+        awake_per_day = [(86400 - i) for i in sleep_per_day]  # In seconds
+        agg_awake = self.Aggregation(awake_per_day)
+        return agg_awake
+
+    def PrepareData(self, df, label_id, label):
+        """Transform the original dataframe into a valid data for graph.
+
+        Df is a list of record.Records, they must be transformed into a list of
+        values per day (amount of hours) so graph can understand it. First
+        we'll filter the data to match project, then, we'll get the time per
+        day & the aggregated data as a list of floats.
+
+        Finally, create a dic
+        with the label & the data.
+        """
+        # Label id should be a list
+        if not isinstance(df, list):
+            raise TypeError('Label id should be a list.')
+
+        # Filter the data
+        df_filtered = []
+        for id in label_id:
+            df_filtered.append(self.filters.ProjectFilter(df, label_id))
+
+        # Combine into a single tuple so PerDay() can understand
+        combined = []
+        for element in df_filtered:
+            if isinstance(element, list) or isinstance(element, tuple):
+                for item in element:
+                    combined.append(item)
+            else:
+                combined.append(element)
+
+        # Get the data per day
+        day_list = self.DayList()
+        data_per_day = self.PerDay(day_list, combined)
+
+        # And the acumulated data
+        aggregated = self.Aggregation(data_per_day)
+
+        # Get the ratio between awake and the activity
+        awake = self.AwakeData(df)
+        data = []
+        for k in aggregated:
+            idx = aggregated.index(k)
+            # print(idx)
+            r = k * 100 / awake[idx]
+            data.append(r)
+
+        # Finally, create the dict and return it.
+        result = {'label': label,
+                  'data': data}
+        return result
 
     def PlotIt(self, data):
         """Output the plot.
 
         Transforms every item in data (list of floats) into a line in the plot.
         """
-        # Check the data.
-        if not isinstance(data, tuple):
-            if not isinstance(data, list):
-                print(type(data))
-                raise ValueError('data not valid')
+        # Check the data: Should be a tuple or a list
+        # if not isinstance(data, tuple):
+        #     if not isinstance(data, list):
+        #         print(type(data))
+        #         raise ValueError('data not valid')
+        #
+        # for row in data:
+        #     if not isinstance(row, float):
+        #         for item in row:
+        #             if not isinstance(item, float):
+        #                 print(type(item))
+        #                 raise ValueError('Data contains no floats')
+        #     else:
+        #         if not isinstance(row, float):
+        #             print(type(row))
+        #             raise ValueError('Data contains no floats')
+        #
+        # if len(data) != len(labels):
+        #     print(len(data), (len(labels)))
+        #     raise TypeError('Insufficient labels for the graph')
 
-        for row in data:
-            for item in row:
-                if not isinstance(item, float):
-                    print(type(item))
-                    raise ValueError('Data contains no floats')
-
-        xvalues = [day for day in range(0, len(data))]  # x-axis values
+        # Graph features
         plt.axhline(y=20, linewidth='2')
-        plt.ylabel('Hours')
+        plt.ylabel('% over time tracked')
+        plt.grid(color='lime', linestyle='-', linewidth='0.5')
+
+        # fill-in data
+        for row in data:
+            data = row['data']  # y-axis values
+            # print(len(data))  # DEBUG:
+            xvalues = [day for day in range(0, len(data))]  # x-axis values
+            plt.plot(xvalues, data, label=row['label'])
+
+        # Finally, show the graph
+        plt.legend()
+        plt.show()
 
 
 class Menu(object):
@@ -966,7 +1124,7 @@ class Menu(object):
         df = db.Year()
         filters = Filters(labels)
         df_week = filters.WeekFilter(df)
-        start = date(2018, 1, 20)
+        start = Settings.start_graph
         df_graph = filters.StartFilter(df, start)
 
         quick = False
@@ -977,7 +1135,7 @@ class Menu(object):
             LastEntries(df, filters, days=5)
             Week(df_week, filters)
             Year(df, filters)
-            Graph(df_graph)
+            Graph(df_graph, filters)
 
             quick = True
 
