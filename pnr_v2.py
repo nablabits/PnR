@@ -933,7 +933,10 @@ class Graph(object):
         opk_ids = range(26, 31)
         opk = self.PrepareData(df, opk_ids, label='OpK')
 
-        to_plot = (bu, opk)
+        shared_id = (31, )
+        shared = self.PrepareData(df, shared_id, label='Shared')
+
+        to_plot = (bu, opk, shared)
         self.PlotIt(to_plot)
 
     def DayList(self):
