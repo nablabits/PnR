@@ -139,8 +139,8 @@ class Utils(object):
         Outputs a rounded float. Avoids percents over 100.
         """
         if total < value:
-            print(value, total)
-            # raise ValueError('Value is higher than total')
+            # print(value, total)  # DEBUG
+            raise ValueError('Value is higher than total')
         if total == 0:  # avoid division by 0
             result = 0
         else:
@@ -626,6 +626,7 @@ class Filters(object):
 
         # Warning if filter have no effect
         if not result:
+            # DEBUG: print warning
             # print('Filter had no effect (project', project,
             #       ') restoring previous df')
             result = df
@@ -937,7 +938,7 @@ class Graph(object):
         """Customize the object."""
         self.df = df
         self.filters = filters
-        bu_ids = (19, 25)
+        bu_ids = range(19, 25)
         bu = self.PrepareData(df, bu_ids, label='BuildUp')
 
         to_plot = (bu,)
@@ -972,7 +973,6 @@ class Graph(object):
             for entry in data:
                 # print(day, entry.day, entry.lenght)
 
-
                 if entry.started == str(day):
                     count += 1
                     have_entry = True
@@ -980,15 +980,16 @@ class Graph(object):
                         lenght = lenght + 0
                     else:
                         lenght = lenght + entry.lenght
-                    # print(day, entry.started, entry.lenght)
-                    # break
+                    # DEBUG: print info
+                    # print(day, entry.started, entry.lenght, entry.name,
+                    #       lenght)
 
             if have_entry is False:
                 result.append(0)
-                print(day, 0)
+                # print(day, 0)  # DEBUG
             else:
                 result.append(lenght)
-        # print(count, 'loops')
+        # print(count, 'loops')  # DEBUG
         result = [float(i) for i in result]  # convert all items into floats
 
         # DEBUG: print list
@@ -1039,7 +1040,14 @@ class Graph(object):
         # Filter the data
         df_filtered = []
         for id in label_id:
-            df_filtered.append(self.filters.ProjectFilter(df, label_id))
+            # print('(1041) filtering graph', id)  # DEBUG
+            filtered = self.filters.ProjectFilter(df, id)
+            if filtered != df:
+                df_filtered.append(filtered)
+            else:
+                # DEBUG: print warning
+                # print('(1046)filter returned the same data, none append')
+                pass
 
         # Combine into a single tuple so PerDay() can understand
         combined = []
@@ -1051,18 +1059,24 @@ class Graph(object):
                 combined.append(element)
 
         # Get the data per day
+        # print('(1059) calculate data per day') # DEBUG
         day_list = self.DayList()
         data_per_day = self.PerDay(day_list, combined)
+
+        # Get the ratio between awake and the activity
+        awake = self.AwakeData(df)
 
         # And the acumulated data
         aggregated = self.Aggregation(data_per_day)
 
-        # Get the ratio between awake and the activity
-        awake = self.AwakeData(df)
+        # awake & aggregated must match
+        if len(awake) != len(aggregated):
+            raise ValueError('awake & aggregated don\'t match')
+
         data = []
         for k in aggregated:
             idx = aggregated.index(k)
-            # print(idx)
+            # print(k, awake[idx])  # DEBUG
             r = k * 100 / awake[idx]
             data.append(r)
 
