@@ -806,8 +806,9 @@ class Week(object):
                   opk_perc, opk,
                   shared_perc, shared,
                   )
+        week = date.isocalendar(date.today())[1]
 
-        print(50 * '*', '\n' 'Week progress')
+        print(50 * '*', '\n Week #%s progress' % week)
         print(' Sleep: %s%% (%sh) \n'
               ' From awake time (%sh): \n'
               '  Time Tracked: %s%% (%sh) \n'
