@@ -9,19 +9,9 @@ import shutil
 from zipfile import ZipFile
 import records
 from datetime import date, datetime, timedelta, time
+from settings import Settings
 from matplotlib import pyplot as plt
 from math import floor
-
-
-class Settings(object):
-    """Define some useful paths."""
-
-    home = '/home/davif/'
-    backup = []
-    db_file = home + 'Dropbox/Aplicaciones/Swipetimes Time Tracker/'
-
-    # Graph start date
-    start_graph = date(2018, 1, 20)
 
 
 class Utils(object):
@@ -932,7 +922,6 @@ class Year(object):
 
 class Graph(object):
     """Show powerful graphs to visualize the year progress."""
-    start = date(2018, 1, 20)
 
     def __init__(self, df, filters):
         """Customize the object."""
@@ -941,7 +930,10 @@ class Graph(object):
         bu_ids = range(19, 25)
         bu = self.PrepareData(df, bu_ids, label='BuildUp')
 
-        to_plot = (bu,)
+        opk_ids = range(26, 31)
+        opk = self.PrepareData(df, opk_ids, label='OpK')
+
+        to_plot = (bu, opk)
         self.PlotIt(to_plot)
 
     def DayList(self):
@@ -1121,7 +1113,8 @@ class Graph(object):
             data = row['data']  # y-axis values
             # print(len(data))  # DEBUG:
             xvalues = [day for day in range(0, len(data))]  # x-axis values
-            plt.plot(xvalues, data, label=row['label'])
+            last = -(len(xvalues) - 20)  # first days are quite irregular
+            plt.plot(xvalues[last:], data[last:], label=row['label'])
 
         # Finally, show the graph
         plt.legend()
