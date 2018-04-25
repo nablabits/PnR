@@ -936,7 +936,10 @@ class Graph(object):
         shared_id = (31, )
         shared = self.PrepareData(df, shared_id, label='Shared')
 
-        to_plot = (bu, opk, shared)
+        bu_tag_id = ('BuildUp',)
+        bu_tag = self.PrepareData(df, bu_tag_id, label='Bu Total')
+
+        to_plot = (bu, opk, shared, bu_tag)
         self.PlotIt(to_plot)
 
     def DayList(self):
@@ -1022,8 +1025,8 @@ class Graph(object):
 
         Df is a list of record.Records, they must be transformed into a list of
         values per day (amount of hours) so graph can understand it. First
-        we'll filter the data to match project, then, we'll get the time per
-        day & the aggregated data as a list of floats.
+        we'll filter the data to match project (int) or the tag (str), then,
+        we'll get the time per day & the aggregated data as a list of floats.
 
         Finally, create a dic
         with the label & the data.
@@ -1036,13 +1039,22 @@ class Graph(object):
         df_filtered = []
         for id in label_id:
             # print('(1041) filtering graph', id)  # DEBUG
-            filtered = self.filters.ProjectFilter(df, id)
-            if filtered != df:
-                df_filtered.append(filtered)
-            else:
-                # DEBUG: print warning
-                # print('(1046)filter returned the same data, none append')
-                pass
+            if isinstance(id, int):
+                filtered = self.filters.ProjectFilter(df, id)
+                if filtered != df:
+                    df_filtered.append(filtered)
+                else:
+                    # DEBUG: print warning
+                    # print('(1046)filter returned the same data, none append')
+                    pass
+            elif isinstance(id, str):
+                filtered = self.filters.LabelFilter(df, id)
+                if filtered != df:
+                    df_filtered.append(filtered)
+                else:
+                    # DEBUG: print warning
+                    # print('(1046)filter returned the same data, none append')
+                    pass
 
         # Combine into a single tuple so PerDay() can understand
         combined = []
@@ -1083,29 +1095,9 @@ class Graph(object):
     def PlotIt(self, data):
         """Output the plot.
 
-        Transforms every item in data (list of floats) into a line in the plot.
+        Transforms every item in data (list of floats) into a line in the plot
+        and adds the label.
         """
-        # Check the data: Should be a tuple or a list
-        # if not isinstance(data, tuple):
-        #     if not isinstance(data, list):
-        #         print(type(data))
-        #         raise ValueError('data not valid')
-        #
-        # for row in data:
-        #     if not isinstance(row, float):
-        #         for item in row:
-        #             if not isinstance(item, float):
-        #                 print(type(item))
-        #                 raise ValueError('Data contains no floats')
-        #     else:
-        #         if not isinstance(row, float):
-        #             print(type(row))
-        #             raise ValueError('Data contains no floats')
-        #
-        # if len(data) != len(labels):
-        #     print(len(data), (len(labels)))
-        #     raise TypeError('Insufficient labels for the graph')
-
         # Graph features
         plt.axhline(y=20, linewidth='2')
         plt.ylabel('% over time tracked')
