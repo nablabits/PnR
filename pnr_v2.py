@@ -1116,6 +1116,63 @@ class Graph(object):
         plt.show()
 
 
+class Compress(object):
+    """Compress and move to the backup folder."""
+
+    def __init__(self):
+        """Create the backup from its elements."""
+        proceed = input('Press any key to create the backup(q to exit)')
+        if (proceed != 'q'):
+            self.TarFilize()
+            self.Move()
+            print('Backup successfully completed!')
+        else:
+            print('Process skipped by user, bye')
+
+    def TarFilize(self):
+        """Create a backup tarball."""
+        print('Tarbal creation start...')
+
+        now = datetime.now()
+        name = (str(now.date()) + '-' + str(now.hour) + str(now.minute) +
+                '.tar.gz')
+
+        # Now, create the file
+        os.chdir(Settings.home)
+        tar = tarfile.open(name, 'w:gz')
+        file_list = (Settings.backup)
+
+        for i in file_list:
+            checkfile = os.path.isdir(i)
+            if checkfile is True:
+                tar.add(i)
+        tar.close
+        input('Tarball created ok!, insert an usb stick & hit any key')
+
+    def Move(self):
+        """Move the backup tarball to the aux device."""
+        org = Settings.home
+        dst = '/media/davif/backup/'  # USB stick should mount auto here
+
+        checkdir = os.path.isdir(dst)
+        while not checkdir:
+            dst = input('Couldn\'t find that location, ' +
+                        'choose manually [q, quit]: ')
+            if dst == 'q':
+                raise KeyboardInterrupt('Process interrupted by user')
+
+            checkdir = os.path.isdir(dst)
+
+        # Look for all the backup tarballs (.bak.tar.gz) in the dir & move'em
+        for line in os.listdir(org):
+            if re.search(r'.tar.gz', line):
+                print(line, '-> !file found, moving...')
+                start = org + line
+                end = dst + line
+                shutil.move(start, end)
+                print('Moved ok.')
+
+
 class Menu(object):
     """Display the main menu."""
 
@@ -1129,16 +1186,13 @@ class Menu(object):
         start = Settings.start_graph
         df_graph = filters.StartFilter(df, start)
 
-        quick = False
-
-        # Quick view
         option = input('Press [y] to perform a quick view (without backup). ')
-        if option == 'y':
-            LastEntries(df, filters, days=5)
-            Week(df_week, filters)
-            Year(df, filters)
-            Graph(df_graph, filters)
+        LastEntries(df, filters, days=5)
+        Week(df_week, filters)
+        Year(df, filters)
+        Graph(df_graph, filters)
+        if option != 'y':
+            Compress()
 
-            quick = True
 
 show_menu = Menu()
