@@ -4,6 +4,8 @@ from datetime import date
 
 
 class Settings(object):
+    """Define paths several fixed data."""
+
     # Paths
     home = '/home/davif/'
     db_file = home + 'Dropbox/Aplicaciones/Swipetimes Time Tracker/'

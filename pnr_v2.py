@@ -89,28 +89,27 @@ class Utils(object):
     def SumTimes(self, df):
         """Sum all the lenghts in a data frame.
 
-        Outputs a rounded float.
+        First checks the data input (should be a list of records.Record, a
+        records.Record or a RecordCollection. Then, check if df is None (since
+        non effect filters output NoneType).
+        Finally, sum all the lenghts and output a rounded float.
         """
         # first, check that the data is appropiate.
         check = False
         if isinstance(df, list):
-            # print('is list')  # DEBUG
             for row in df:
                 if isinstance(row, records.Record):
-                    # print('is records.Record')  # DEBUG
                     check = True
                 else:
                     print(type(row))
         elif isinstance(df, records.Record):
-            print('is records.Record')
             check = True
         elif isinstance(df, records.RecordCollection):
-            print('is records.RecordCollection')
             check = True
 
         if not df:
-            print(type(df))
-            # raise ValueError('Can\'t sum this data')
+            # print(type(df))
+            pass
 
         # DEBUG:
         # for row in df:
@@ -118,7 +117,6 @@ class Utils(object):
 
         total = 0
         if check is True:
-            # print('ready to sum')  # DEBUG
             for row in df:
                 if not row.name:
                     delta = 0
@@ -129,8 +127,7 @@ class Utils(object):
                     delta = (end.timestamp() - start.timestamp())
                 else:
                     delta = row.lenght
-            total = total + delta
-            # print(total)  # DEBUG
+                total = total + delta
 
         total = round(total, 2)
 
@@ -162,28 +159,23 @@ class Utils(object):
         # input is a list or a range
         if isinstance(project, tuple) or isinstance(project, range):
             for i in project:
-                print('Filtering df with %s' % i)
                 df_filtered = self.filters.ProjectFilter(df, i)
-                print('filter rturned:', type(df_filtered))
-                # since a non-effect filter returns none
+                # since a non-effect filter returns NoneType
                 if df_filtered is None:
-                    print('is None', project)
                     addvalue = 0
                 else:
-                    print('Filter worked', project)
                     addvalue = self.in_hours(self.SumTimes(df_filtered))
-                print('adding %s hours from %s' % (addvalue, i))  # DEBUG
+                # print('adding %s hours from %s' % (addvalue, i))  # DEBUG
                 value = addvalue + value
             value = round(value, 2)
         # input is an int
         else:
             df_filtered = self.filters.ProjectFilter(df, project)
-            # since a non-effect filter returns df again
+            # since a non-effect filter returns NoneType
             if df_filtered is None:
-                print('is None', project)
                 addvalue = 0
             value = self.in_hours(self.SumTimes(df_filtered))
-            print('adding %s hours from %s' % (value, project))  # DEBUG
+            # print('adding %s hours from %s' % (value, project))  # DEBUG
         return value
 
     def LabelTime(self, df, label):
@@ -492,7 +484,7 @@ class Filters(object):
 
         elif not df:
             pass
-            print(type(df), filter)  # DEBUG
+            # print(type(df), filter)  # DEBUG
 
         else:
             result = print(type(df), filter)
@@ -632,7 +624,8 @@ class Filters(object):
         """Filter by project.
 
         This function filters the df which match with a given project. Project
-        input should be an int. Returns a list of records.Record.
+        input should be an int. Returns a list of records.Record or NoneType if
+        filter didn't work.
         """
         self.DfType(df, filter='(Project Filter)')  # Check type of df DEBUG
 
@@ -648,8 +641,8 @@ class Filters(object):
         # Warning if filter have no effect
         if not result:
             # DEBUG: print warning
-            print('Filter had no effect (project', project,
-                  ') Output NoneType')
+            # print('Filter had no effect (project', project,
+            #       ') Output NoneType')
             result = None
 
         # Check type of df DEBUG
@@ -1224,10 +1217,10 @@ class Menu(object):
         df_graph = filters.StartFilter(df, start)
 
         option = input('Press [y] to perform a quick view (without backup). ')
-        # LastEntries(df, filters, days=5)
+        LastEntries(df, filters, days=5)
         Week(df_week, filters)
-        # Year(df, filters)
-        # Graph(df_graph, filters)
+        Year(df, filters)
+        Graph(df_graph, filters)
         if option != 'y':
             Compress()
 
