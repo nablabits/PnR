@@ -94,33 +94,46 @@ class Utils(object):
         # first, check that the data is appropiate.
         check = False
         if isinstance(df, list):
-            if isinstance(df, records.Record):
-                check = True
+            # print('is list')  # DEBUG
+            for row in df:
+                if isinstance(row, records.Record):
+                    # print('is records.Record')  # DEBUG
+                    check = True
+                else:
+                    print(type(row))
         elif isinstance(df, records.Record):
+            print('is records.Record')
             check = True
         elif isinstance(df, records.RecordCollection):
+            print('is records.RecordCollection')
             check = True
-        elif not check:
+
+        if not df:
             print(type(df))
-            raise ValueError('Can\'t sum this data')
+            # raise ValueError('Can\'t sum this data')
 
         # DEBUG:
         # for row in df:
         #     print(row.id, row.hour, row.name)
 
         total = 0
-        for row in df:
-            if not row.name:
-                delta = 0
-            if not row.lenght:  # On going processes have no lenght
-                start = (row.started + ' ' + row.hour)
-                start = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
-                end = datetime.now()
-                delta = (end.timestamp() - start.timestamp())
-            else:
-                delta = row.lenght
+        if check is True:
+            # print('ready to sum')  # DEBUG
+            for row in df:
+                if not row.name:
+                    delta = 0
+                if not row.lenght:  # On going processes have no lenght
+                    start = (row.started + ' ' + row.hour)
+                    start = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
+                    end = datetime.now()
+                    delta = (end.timestamp() - start.timestamp())
+                else:
+                    delta = row.lenght
             total = total + delta
+            # print(total)  # DEBUG
+
         total = round(total, 2)
+
         return total
 
     def Percents(self, value, total):
@@ -146,24 +159,31 @@ class Utils(object):
         filter has no effect.
         """
         value = 0
+        # input is a list or a range
         if isinstance(project, tuple) or isinstance(project, range):
             for i in project:
+                print('Filtering df with %s' % i)
                 df_filtered = self.filters.ProjectFilter(df, i)
-                # since a non-effect filter returns df again
-                if df == df_filtered:
+                print('filter rturned:', type(df_filtered))
+                # since a non-effect filter returns none
+                if df_filtered is None:
+                    print('is None', project)
                     addvalue = 0
                 else:
+                    print('Filter worked', project)
                     addvalue = self.in_hours(self.SumTimes(df_filtered))
-                # print('adding %s hours from %s' % (addvalue, i))  # DEBUG
+                print('adding %s hours from %s' % (addvalue, i))  # DEBUG
                 value = addvalue + value
             value = round(value, 2)
+        # input is an int
         else:
             df_filtered = self.filters.ProjectFilter(df, project)
             # since a non-effect filter returns df again
-            if df == df_filtered:
+            if df_filtered is None:
+                print('is None', project)
                 addvalue = 0
             value = self.in_hours(self.SumTimes(df_filtered))
-            # print('adding %s hours from %s' % (value, project))  # DEBUG
+            print('adding %s hours from %s' % (value, project))  # DEBUG
         return value
 
     def LabelTime(self, df, label):
@@ -177,7 +197,9 @@ class Utils(object):
         value = 0
         df_filtered = self.filters.LabelFilter(df, label)
         # since a non-effect filter returns df again
-        if df != df_filtered:
+        if not df_filtered:
+            value = 0
+        else:
             value = self.in_hours(self.SumTimes(df_filtered))
         return value
 
@@ -451,8 +473,10 @@ class Filters(object):
         Raise an error if input/output data have errors. Allowed types are:
         records.RecordCollection or a list containing records.Record entries.
         Filter is used to trace where are the errors.
+        Now, since filters can output None type, they are allowed.
         """
         result = None
+        # print('DFType Test')
         if isinstance(df, list):
             error = False
             for row in df:
@@ -466,9 +490,14 @@ class Filters(object):
             pass
             # result = print('Records collection', filter)  # DEBUG
 
+        elif not df:
+            pass
+            print(type(df), filter)  # DEBUG
+
         else:
             result = print(type(df), filter)
 
+        # print('DFType test end', result)
         return result
 
     def WeekFilter(self, df):
@@ -502,8 +531,8 @@ class Filters(object):
         if not result:
             # DEBUG
             # print('Filter had no effect (week', start,
-            #       ') restoring previous df')
-            result = df
+            #       ') Output None')
+            result = None
 
         # Check output
         self.DfType(result, filter='(Week Filter, output)')
@@ -535,11 +564,12 @@ class Filters(object):
         if not result:
             # DEBUG
             # print('Filter had no effect (day', str(day),
-            #       ') restoring previous df')
-            result = df
+            #       ') Output None')
+            result = None
 
         # Check output
         self.DfType(result, filter='(Day Filter, output)')
+
         return result
 
     def LabelFilter(self, df, label):
@@ -590,11 +620,12 @@ class Filters(object):
         if not result:
             # DEBUG
             # print('Filter had no effect (label', label,
-            #       ') restoring previous df')
-            result = df
+            #       ') Output NoneType')
+            result = None
 
         # Check type of df DEBUG
         self.DfType(result, filter='(Label Filter, output)')
+
         return result
 
     def ProjectFilter(self, df, project):
@@ -617,12 +648,13 @@ class Filters(object):
         # Warning if filter have no effect
         if not result:
             # DEBUG: print warning
-            # print('Filter had no effect (project', project,
-            #       ') restoring previous df')
-            result = df
+            print('Filter had no effect (project', project,
+                  ') Output NoneType')
+            result = None
 
         # Check type of df DEBUG
-        # self.DfType(result, filter='(Project Filter, output)')
+        self.DfType(result, filter='(Project Filter, output)')
+
         return result
 
     def StartFilter(self, df, start):
@@ -648,12 +680,13 @@ class Filters(object):
 
         if not result:
             # DEBUG
-            # print('Filter had no effect (day', str(day),
-            #       ') restoring previous df')
-            result = df
+            print('Filter had no effect (day', str(start),
+                  ') Output NoneType')
+            result = None
 
         # Check output
         self.DfType(result, filter='(Day Filter, output)')
+
         return result
 
 
@@ -889,7 +922,10 @@ class Year(object):
         opk = self.p_time(df, opk_projects)
         opk_perc = self.perc(opk, awake[0])
         opk_tries = self.p_time(df, 28)
-        opk_ratio = round(opk_tries * 100 / opk, 2)
+        if opk != 0:
+            opk_ratio = round(opk_tries * 100 / opk, 2)
+        else:
+            opk_ratio = 0
 
         # Shared Time
         shared = self.p_time(df, 31)
@@ -1188,10 +1224,10 @@ class Menu(object):
         df_graph = filters.StartFilter(df, start)
 
         option = input('Press [y] to perform a quick view (without backup). ')
-        LastEntries(df, filters, days=5)
+        # LastEntries(df, filters, days=5)
         Week(df_week, filters)
-        Year(df, filters)
-        Graph(df_graph, filters)
+        # Year(df, filters)
+        # Graph(df_graph, filters)
         if option != 'y':
             Compress()
 
