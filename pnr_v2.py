@@ -454,6 +454,33 @@ class DataYear(object):
         print('db hit (labels)')  # to measure how many times we hit the db
         return df
 
+    def Tags(self, period):
+        """Create an object that returns sum times per tag.
+
+        Filter entries with python takes a long time, so we filter and sum the
+        data from the query itself. Period represents the time filter (week or
+        year).
+        """
+        fields = {"sum(strftime('%s',stopped)-" +
+                  "strftime('%s', started))": 'lenght',
+                  'tag.name': 'tag'}
+
+        # Build the field string for the query
+        fields_str = ''
+        for k in fields:
+            r = (k + ' as \'' + fields[k] + '\', ')
+            fields_str = fields_str + r
+        fields_str = 'SELECT ' + fields_str[0:-2]
+
+        table = ' FROM work'
+        join1 = ' INNER JOIN work_tag ON work.id=work_id'
+        join2 = ' INNER JOIN tag ON tag.id=work_tag.tag_id'
+        constraint = ' WHERE date(started) >= \'2018-01-01\' '
+        sorting = 'GROUP BY tag ORDER BY work.id ASC'
+
+        query = fields_str + table + join1 + join2 + constraint + sorting
+        for continue here
+
 
 class Filters(object):
     """Define useful filters for the data extracted from db.
