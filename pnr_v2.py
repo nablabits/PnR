@@ -127,6 +127,8 @@ class Utils(object):
                     delta = (end.timestamp() - start.timestamp())
                 else:
                     delta = row.lenght
+                    if delta < 0:
+                        print(delta, row.id, row.started, row.hour)
                 total = total + delta
 
         total = round(total, 2)
@@ -381,6 +383,10 @@ class DataYear(object):
         tdb = TrackDB()
         zipfile = tdb.GetDB()
         self.db = records.Database('sqlite:///' + zipfile)
+
+        # Clean the db, deleted entries return weird data
+        self.db.query("DELETE FROM work WHERE project <= 1")
+
         tdb.CleanUp()  # & Clean the tmp folder.
 
     def Year(self):
@@ -813,7 +819,6 @@ class Week(object):
         bu_projects = range(19, 25)
         bu = self.p_time(df, bu_projects)
         bu_perc = self.perc(bu, awake[0])
-        bu_goal = self.bu_goal(bu, awake[0])
 
         opk_projects = range(26, 31)
         opk = self.p_time(df, opk_projects)
@@ -827,7 +832,7 @@ class Week(object):
         output = (sleep_perc, sleep,
                   awake[0],
                   tt_perc, tt,
-                  bu_perc, bu, bu_goal,
+                  bu_perc, bu,
                   qlty[0], qlty[1], qlty[2],
                   opk_perc, opk,
                   shared_perc, shared,
@@ -838,7 +843,7 @@ class Week(object):
         print(' Sleep: %s%% (%sh) \n'
               ' From awake time (%sh): \n'
               '  Time Tracked: %s%% (%sh) \n'
-              '  Bu Project time: %s%% (%sh) %s \n'
+              '  Bu Project time: %s%% (%sh) \n'
               '  Bu Qlty: hi, %s%%; mid, %s%%; lo, %s%%  \n'
               '  Opk Project time: %s%% (%sh) \n'
               '  Shared time: %s%% (%sh)'
@@ -897,7 +902,6 @@ class Year(object):
         bu_projects = range(19, 25)
         bu = self.p_time(df, bu_projects)
         bu_perc = self.perc(bu, awake[0])
-        bu_goal = self.bu_goal(bu, awake[0])
 
         qlty = self.qlty(df, bu)
 
@@ -927,7 +931,7 @@ class Year(object):
         output = (sleep_perc, sleep,
                   awake[0],
                   tt_perc, tt,
-                  bu_perc, bu, bu_goal,
+                  bu_perc, bu,
                   qlty[0], qlty[1], qlty[2],
                   bu_tag_perc, bu_tag, bu_tag_goal,
                   core, corerange,
@@ -940,7 +944,7 @@ class Year(object):
         print(' Sleep: %s%% (%sh) \n'
               ' From awake time (%sh): \n'
               '  Time Tracked: %s%% (%sh) \n'
-              '  Bu Project time: %s%% (%sh) %s \n'
+              '  Bu Project time: %s%% (%sh) \n'
               '  Bu Qlty: hi, %s%%; mid, %s%%; lo, %s%%  \n'
               '  BuildUp Total: %s%% (%sh) %s \n'
               '  Core Range: %sh %s \n'
