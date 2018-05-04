@@ -459,8 +459,25 @@ class DataYear(object):
 
         Filter entries with python takes a long time, so we filter and sum the
         data from the query itself. Period represents the time filter (week or
-        year).
+        year allowed).
+        Returns a RecordCollection with all the sums per tag.
         """
+
+        # first check Period
+        if period == 'year':
+            period = '\'2018-01-01\''
+        elif period == 'week':
+            today = date.today()
+            delta = timedelta(days=-1)
+            start = today
+            while start.isocalendar()[2] != 1:  # reduce days until reach mon
+                start = start + delta
+            period = '\'' + str(start) + '\''
+        else:
+            print('Warning: period (%s) was not' % period +
+                  ' understood using default(year)')
+            period = '\'2018-01-01\''
+
         fields = {"sum(strftime('%s',stopped)-" +
                   "strftime('%s', started))": 'lenght',
                   'tag.name': 'tag'}
@@ -475,11 +492,15 @@ class DataYear(object):
         table = ' FROM work'
         join1 = ' INNER JOIN work_tag ON work.id=work_id'
         join2 = ' INNER JOIN tag ON tag.id=work_tag.tag_id'
-        constraint = ' WHERE date(started) >= \'2018-01-01\' '
+        constraint = (' WHERE date(started) >= %s ' % period)
         sorting = 'GROUP BY tag ORDER BY work.id ASC'
 
         query = fields_str + table + join1 + join2 + constraint + sorting
-        for continue here
+        df = self.db.query(query)
+        print('db hit (Tags)')  # to measure how many times we hit the db
+        for row in df:
+            print(row.tag, row.lenght)
+        # return df
 
 
 class Filters(object):
@@ -1248,10 +1269,11 @@ class Menu(object):
         df_graph = filters.StartFilter(df, start)
 
         option = input('Press [y] to perform a quick view (without backup). ')
-        LastEntries(df, filters, days=5)
-        Week(df_week, filters)
-        Year(df, filters)
-        Graph(df_graph, filters)
+        # LastEntries(df, filters, days=5)
+        # Week(df_week, filters)
+        # Year(df, filters)
+        # Graph(df_graph, filters)
+
         if option != 'y':
             Compress()
 
