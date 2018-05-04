@@ -454,16 +454,8 @@ class DataYear(object):
         print('db hit (labels)')  # to measure how many times we hit the db
         return df
 
-    def Tags(self, period):
-        """Create an object that returns sum times per tag.
-
-        Filter entries with python takes a long time, so we filter and sum the
-        data from the query itself. Period represents the time filter (week or
-        year allowed).
-        Returns a RecordCollection with all the sums per tag.
-        """
-
-        # first check Period
+    def Period(self, period):
+        """Check if period is valid (and if not, return a valid one)."""
         if period == 'year':
             period = '\'2018-01-01\''
         elif period == 'week':
@@ -477,6 +469,21 @@ class DataYear(object):
             print('Warning: period (%s) was not' % period +
                   ' understood using default(year)')
             period = '\'2018-01-01\''
+        return period
+
+    def Tags(self, period, tag):
+        """Create an object that returns sum times per tag and per period.
+
+        Filter entries with python takes a long time, so we filter and sum the
+        data from the query itself. Period represents the time filter (week or
+        year allowed).
+        Returns an integer with the elapsed time.
+        """
+
+        # first check if Period is valid
+        period = self.Period(period)
+
+        tag = '\'' + tag + '\''
 
         fields = {"sum(strftime('%s',stopped)-" +
                   "strftime('%s', started))": 'lenght',
@@ -492,15 +499,50 @@ class DataYear(object):
         table = ' FROM work'
         join1 = ' INNER JOIN work_tag ON work.id=work_id'
         join2 = ' INNER JOIN tag ON tag.id=work_tag.tag_id'
-        constraint = (' WHERE date(started) >= %s ' % period)
+        constraint = (' WHERE date(started) >= %s ' % period +
+                      ' AND tag.name = %s' % tag)
         sorting = 'GROUP BY tag ORDER BY work.id ASC'
 
         query = fields_str + table + join1 + join2 + constraint + sorting
-        df = self.db.query(query)
-        print('db hit (Tags)')  # to measure how many times we hit the db
-        for row in df:
-            print(row.tag, row.lenght)
-        # return df
+        result = self.db.query(query)
+        # to measure how many times we hit the db # DEBUG
+        print('db hit, %s period and %s tag' % period, tag)
+
+        # DEBUG:
+        # for result in df:
+        #     print(row.tag, row.lenght)
+
+        seconds = result.lenght
+        return seconds
+
+    def Project(self, period, project):
+        # first check if Period is valid
+        period = self.Period(period)
+
+        fields = {"sum(strftime('%s',stopped)-" +
+                  "strftime('%s', started))": 'lenght',
+                  'project_name': 'project'}
+        # Build the field string for the query
+        fields_str = ''
+        for k in fields:
+            r = (k + ' as \'' + fields[k] + '\', ')
+            fields_str = fields_str + r
+        fields_str = 'SELECT ' + fields_str[0:-2]
+        table = ' FROM work'
+        if project == 'all':
+            constraint = (' WHERE date(started) >= %s ' % period)
+        else:
+            constraint = (' WHERE date(started) >= %s ' % period +
+                          ' AND project = %s' % project)
+        sorting = 'GROUP BY project ORDER BY work.id ASC'
+
+        query = fields_str + table + constraint + sorting
+        result = self.db.query(query)
+        # to measure how many times we hit the db # DEBUG
+        print('db hit, %s period and %s tag' % period, project)
+        seconds = result.lenght
+        return seconds
+
 
 
 class Filters(object):
@@ -1002,6 +1044,36 @@ class Year(object):
               % output)
 
 
+class YearV2(object):
+    """Refactor current year by filtering right from the db."""
+
+    def __init__(self):
+        print('YearV2 from here down')
+        db = DataYear()
+        self.tag_filter = db.Tags
+        self.project_filter = db.Project
+
+        self.Output()
+
+    def TotalHours(self):
+        """Calculate the elapsed hours in the Year.
+
+        Outputs a rounded float with the hours elapsed since Jan 1 00:00.
+        """
+        now = datetime.timestamp(datetime.now())
+        start = datetime(2018, 1, 1, 0, 0, 0, 0)
+        start = datetime.timestamp(start)
+        total_hours = round((now - start) / 3600, 2)
+        return total_hours
+
+    def Output(self):
+        """Output the data.
+
+        Using the commom functions, output quantities and percents.
+        """
+
+
+
 class Graph(object):
     """Show powerful graphs to visualize the year progress."""
 
@@ -1263,19 +1335,21 @@ class Menu(object):
         db = DataYear()
         labels = db.Labels()
         df = db.Year()
+        # db.Tags(period='year', tag='BuildUp')
         filters = Filters(labels)
         df_week = filters.WeekFilter(df)
         start = Settings.start_graph
         df_graph = filters.StartFilter(df, start)
 
-        option = input('Press [y] to perform a quick view (without backup). ')
+        # option = input('Press [y] to perform a quick view (without backup). ')
         # LastEntries(df, filters, days=5)
         # Week(df_week, filters)
-        # Year(df, filters)
+        Year(df, filters)
+        YearV2()
         # Graph(df_graph, filters)
 
-        if option != 'y':
-            Compress()
+        # if option != 'y':
+        #     Compress()
 
 
 show_menu = Menu()

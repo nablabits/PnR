@@ -19,7 +19,7 @@ SELECT work.id, tag.name as 'tag'
     FROM work
     INNER JOIN work_tag ON work.id=work_id
     INNER JOIN tag ON tag.id=work_tag.tag_id
-    WHERE date(started) >= '2018-01-01'
+    WHERE date(started) >= '2018-01-01' AND tag.name='BuildUp'
     GROUP BY tag
     ORDER BY work.id ASC
 
