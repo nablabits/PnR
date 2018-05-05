@@ -1,4 +1,4 @@
-"""This script provides useful data for final day's summary. V3
+"""Provide useful data for final day's summary. V3
 
 Perform a backup of the files as well.
 """
@@ -372,10 +372,7 @@ class TrackDB(object):
 
 
 class DataYear(object):
-    """Group the year data in an object.
-
-    We'll perform a single call to the db and then manipulate the data.
-    """
+    """Queries for the database."""
 
     def __init__(self):
         """Start the object."""
@@ -386,8 +383,6 @@ class DataYear(object):
 
         # Clean the db, deleted entries return weird data
         self.db.query("DELETE FROM work WHERE project <= 1")
-
-        tdb.CleanUp()  # & Clean the tmp folder.
 
     def Year(self):
         """Create an object with all the data of the year.
@@ -454,6 +449,47 @@ class DataYear(object):
         print('db hit (labels)')  # to measure how many times we hit the db
         return df
 
+    """
+    *******New Section down here*******
+    """
+
+    def LastEntriesQuery(self, day):
+        """Create an object with all the data in a given day.
+
+        Returns a DataFrame (df) with all the entries.
+        """
+        # Fields of the query
+        fields = {'work.id': 'id',
+                  'project': 'project',
+                  'project_name': 'name',
+                  'details': 'details',
+                  'date(started)': 'started',
+                  'time(started)': 'hour',
+                  "strftime('%s',stopped)-strftime('%s', started)": 'lenght'
+                  }
+
+        # Build the field string
+        fields_str = ''
+        for k in fields:
+            r = (k + ' as \'' + fields[k] + '\', ')
+            fields_str = fields_str + r
+        fields_str = 'SELECT ' + fields_str[0:-2]
+
+        day = '\'' + str(day) + '\''
+        # day = '\'2018-01-01\''
+
+        table = ' FROM work'
+        constraint = (' WHERE date(started) = %s ' % day)
+        order = 'ORDER BY datetime(started) ASC'
+
+        # Perform the one-for-all query
+        query = fields_str + table + constraint + order
+
+        # The raw query
+        df = self.db.query(query)
+        print('db hit (last entries)')  # to measure how many times we hit the db
+        return df
+
     def Period(self, period):
         """Check if period is valid (and if not, return a valid one)."""
         if period == 'year':
@@ -502,7 +538,7 @@ class DataYear(object):
         query = fields_str + table + join1 + join2 + constraint + sorting
         result = self.db.query(query)
         # to measure how many times we hit the db # DEBUG
-        print('Tag: db hit, %s period' % period)
+        # print('Tag: db hit, %s period' % period)
 
         tag_dict = {}
         for row in result:
@@ -531,14 +567,13 @@ class DataYear(object):
         query = fields_str + table + constraint + sorting
         result = self.db.query(query)
         # to measure how many times we hit the db # DEBUG
-        print('Project: db hit, %s period' % period)
+        # print('Project: db hit, %s period' % period)
         project_dict = {}
         for row in result:
             # print(row.tag, row.lenght) # DEBUG
             project_dict[row.project] = row.lenght / 3600
 
         return project_dict
-
 
 
 class Filters(object):
@@ -778,12 +813,9 @@ class Filters(object):
 class LastEntries(object):
     """Print last entries for the daily summary."""
 
-    def __init__(self, df, filters, days):
+    def __init__(self, days):
         """Customize the object."""
-        self.df = df
-        self.filters = filters
         self.days = days
-        self.hours = Utils(filters).in_hours
 
         # return the entries
         self.Output()
@@ -812,11 +844,13 @@ class LastEntries(object):
         Returns a list that contains n lists (one per day) each one with a
         records.Record, since filters always output a list.
         """
+        db = DataYear()
+        last_entries = db.LastEntriesQuery
         date_list = self.DateList()
         df = []
 
         for i in date_list:
-            data_filtered = self.filters.DayFilter(self.df, i)
+            data_filtered = last_entries(i)
             df.append(data_filtered)
 
         return df
@@ -827,15 +861,18 @@ class LastEntries(object):
         Take each one of the days in the df and print the entries. The input is
         list with n lists (one per day) each one with a records.Record.
         """
-        for day in self.DataFrame():
+        df = self.DataFrame()
+        day = 0
+        for entry in df:
             print(50 * '*')
-            print(day[0].started)
-            for row in day:
+            print(self.DateList()[day])
+            day += 1
+            for row in entry:
                 hour = row.hour[0:5]
                 if not row.lenght:
                     lenght = 'On going'
                 else:
-                    lenght = str(self.hours(row.lenght)) + 'h'
+                    lenght = str(round(row.lenght / 3600, 2)) + 'h'
                 name = row.name
                 if not row.details:
                     details = 'No comments'
@@ -849,8 +886,120 @@ class LastEntries(object):
 
         return True
 
+
 class Week(object):
-    pass
+    def __init__(self):
+        db = DataYear()
+        self.tag_times = db.Tags(period='week')
+        self.project_times = db.Project(period='week')
+
+        self.Output()
+
+    def TotalHours(self):
+        """Calculate the elapsed hours in the week.
+
+        Outputs a rounded float with the hours elapsed since monday @0:00.
+        """
+        now = datetime.timestamp(datetime.now())
+        today = date.today()
+        delta = timedelta(days=-1)
+        end = today
+
+        # reduce days until reach last monday
+        while end.isocalendar()[2] != 1:
+            end = end + delta
+        midnight = time(0, 0, 0, 0)
+        end = datetime.combine(end, midnight)
+        start = datetime.timestamp(end)
+        total_hours = round((now - start) / 3600, 2)
+        return total_hours
+
+    def TestKeys(self, test_type, keyname):
+        """Test the keys to avoid KeyError.
+
+        Since some projects in the week could not have no key yet, test it and
+        return 0 in case. Otherwise, return the value for the key.
+        """
+        if test_type == 'project':
+            try:
+                value = self.project_times[keyname]
+            except KeyError:
+                # print('Key (%s) not found adding 0' % keyname)  # DEBUG
+                value = 0
+        elif test_type == 'tag':
+            try:
+                value = self.tag_times[keyname]
+                # break
+            except KeyError:
+                # print('Key (%s) not found adding 0' % keyname)  # DEBUG
+                value = 0
+        else:
+            raise ValueError('type unknown')
+        return value
+
+    def Output(self):
+        """Output the data.
+
+        Using the commom functions, output quantities and percents.
+        """
+        week = date.isocalendar(date.today())[1]
+        total_hours = self.TotalHours()
+        test = self.TestKeys
+        test_type = ('project', 'tag')
+
+        sleep = round(test(test_type[0], 'Shift.Sleep'), 2)
+        sleep_perc = round(sleep * 100 / total_hours, 2)
+
+        awake = round(total_hours - sleep, 2)
+
+        tt = 0 - sleep
+        for k in self.project_times:
+            tt = tt + self.project_times[k]
+        tt = round(tt, 2)
+        tt_perc = round(tt * 100 / awake, 2)
+
+        bu = round(test(test_type[0], 'BuildUp.CS') +
+                   test(test_type[0], 'BuildUp.Math') +
+                   test(test_type[0], 'BuildUp.FR') +
+                   test(test_type[0], 'BuildUp.DE') +
+                   test(test_type[0], 'BuildUp.Jap') +
+                   test(test_type[0], 'BuildUp.Others'), 2
+                   )
+        bu_perc = round(bu * 100 / awake, 2)
+
+        bu_hi = round(test(test_type[1], '1-hi') * 100 / bu)
+        bu_mid = round(test(test_type[1], '2-mid') * 100 / bu)
+        bu_lo = round(test(test_type[1], '3-lo') * 100 / bu)
+
+        opk = round(test(test_type[0], 'OpK.Urgoiti.2018') +
+                    test(test_type[0], 'OpK.GoBasquing.2018') +
+                    test(test_type[0], 'OpK.Tourne.2018') +
+                    test(test_type[0], 'OpK.Others.2018') +
+                    test(test_type[0], 'OpK.Tries.2018'), 2
+                    )
+        opk_perc = round(opk * 100 / awake, 2)
+
+        shared = round(test(test_type[0], 'StuffBox.Shared'), 2)
+        shared_perc = round(shared * 100 / awake, 2)
+
+        output = (sleep_perc, sleep,
+                  awake,
+                  tt_perc, tt,
+                  bu_perc, bu,
+                  bu_hi, bu_mid, bu_lo,
+                  opk_perc, opk,
+                  shared_perc, shared,
+                  )
+        print(50 * '*', '\n Week #%s progress (v3)' % week)
+        print(' Sleep: %s%% (%sh) \n'
+              ' From awake time (%sh): \n'
+              '  Time Tracked: %s%% (%sh) \n'
+              '  Bu Project time: %s%% (%sh) \n'
+              '  Bu Qlty: hi, %s%%; mid, %s%%; lo, %s%%  \n'
+              '  Opk Project time: %s%% (%sh) \n'
+              '  Shared time: %s%% (%sh)'
+              % output)
+
 
 class Year(object):
     """Refactor current year by filtering right from the db."""
@@ -953,6 +1102,7 @@ class Year(object):
               '  Shared time: %s%% (%sh)'
               % output
               )
+
 
 class Graph(object):
     """Show powerful graphs to visualize the year progress."""
@@ -1212,6 +1362,7 @@ class Menu(object):
 
     def __new__(self):
         """Instantiate the data from db."""
+        LastEntries(5)
         Week()
         Year()
         # Graph(df_graph, filters)
@@ -1219,5 +1370,6 @@ class Menu(object):
         # if option != 'y':
         #     Compress()
 
+        TrackDB().CleanUp()  # & Clean the tmp folder.
 
 show_menu = Menu()
