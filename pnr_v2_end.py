@@ -479,7 +479,6 @@ class DataYear(object):
         sorting = 'GROUP BY tag ORDER BY work.id ASC'
 
         query = fields_str + table + join1 + join2 + constraint + sorting
-        #for continue here
 
 
 class Filters(object):
