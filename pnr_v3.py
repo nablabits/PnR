@@ -1,4 +1,4 @@
-"""This script provides useful data for final day's summary.
+"""This script provides useful data for final day's summary. V3
 
 Perform a backup of the files as well.
 """
@@ -471,19 +471,16 @@ class DataYear(object):
             period = '\'2018-01-01\''
         return period
 
-    def Tags(self, period, tag):
+    def Tags(self, period):
         """Create an object that returns sum times per tag and per period.
 
         Filter entries with python takes a long time, so we filter and sum the
         data from the query itself. Period represents the time filter (week or
         year allowed).
-        Returns an integer with the elapsed time.
+        Returns a dictionary with al the values for each tag.
         """
-
         # first check if Period is valid
         period = self.Period(period)
-
-        tag = '\'' + tag + '\''
 
         fields = {"sum(strftime('%s',stopped)-" +
                   "strftime('%s', started))": 'lenght',
@@ -499,23 +496,22 @@ class DataYear(object):
         table = ' FROM work'
         join1 = ' INNER JOIN work_tag ON work.id=work_id'
         join2 = ' INNER JOIN tag ON tag.id=work_tag.tag_id'
-        constraint = (' WHERE date(started) >= %s ' % period +
-                      ' AND tag.name = %s' % tag)
+        constraint = (' WHERE date(started) >= %s ' % period)
         sorting = 'GROUP BY tag ORDER BY work.id ASC'
 
         query = fields_str + table + join1 + join2 + constraint + sorting
         result = self.db.query(query)
         # to measure how many times we hit the db # DEBUG
-        print('db hit, %s period and %s tag' % period, tag)
+        print('Tag: db hit, %s period' % period)
 
-        # DEBUG:
-        # for result in df:
-        #     print(row.tag, row.lenght)
+        tag_dict = {}
+        for row in result:
+            # print(row.tag, row.lenght) # DEBUG
+            tag_dict[row.tag] = row.lenght / 3600
 
-        seconds = result.lenght
-        return seconds
+        return tag_dict
 
-    def Project(self, period, project):
+    def Project(self, period):
         # first check if Period is valid
         period = self.Period(period)
 
@@ -529,19 +525,19 @@ class DataYear(object):
             fields_str = fields_str + r
         fields_str = 'SELECT ' + fields_str[0:-2]
         table = ' FROM work'
-        if project == 'all':
-            constraint = (' WHERE date(started) >= %s ' % period)
-        else:
-            constraint = (' WHERE date(started) >= %s ' % period +
-                          ' AND project = %s' % project)
+        constraint = (' WHERE date(started) >= %s ' % period)
         sorting = 'GROUP BY project ORDER BY work.id ASC'
 
         query = fields_str + table + constraint + sorting
         result = self.db.query(query)
         # to measure how many times we hit the db # DEBUG
-        print('db hit, %s period and %s tag' % period, project)
-        seconds = result.lenght
-        return seconds
+        print('Project: db hit, %s period' % period)
+        project_dict = {}
+        for row in result:
+            # print(row.tag, row.lenght) # DEBUG
+            project_dict[row.project] = row.lenght / 3600
+
+        return project_dict
 
 
 
@@ -853,111 +849,16 @@ class LastEntries(object):
 
         return True
 
-
 class Week(object):
-    """Show how it's going the week."""
-
-    def __init__(self, df, filters):
-        """Customize the object."""
-        self.df = df
-        self.filters = filters
-        utils = Utils(filters)
-        self.hours = utils.in_hours
-        self.sum = utils.SumTimes
-        self.perc = utils.Percents
-        self.p_time = utils.ProjectTime
-        self.awake = utils.AwakeTime
-        self.tt = utils.TimeTracked
-        self.bu_goal = utils.BuTarget
-        self.qlty = utils.Qualitiy
-
-        self.Output()
-
-    def TotalHours(self):
-        """Calculate the elapsed hours in the week.
-
-        Outputs a rounded float with the hours elapsed since monday @0:00.
-        """
-        now = datetime.timestamp(datetime.now())
-        today = date.today()
-        delta = timedelta(days=-1)
-        end = today
-
-        # reduce days until reach last monday
-        while end.isocalendar()[2] != 1:
-            end = end + delta
-        midnight = time(0, 0, 0, 0)
-        end = datetime.combine(end, midnight)
-        start = datetime.timestamp(end)
-        total_hours = round((now - start) / 3600, 2)
-        return total_hours
-
-    def Output(self):
-        """Output the data.
-
-        Using the commom functions, output quantities and percents.
-        """
-        df = self.df
-        awake = self.awake(df, self.TotalHours())
-
-        sleep = self.p_time(df, 38)
-        sleep_perc = self.perc(sleep, self.TotalHours())
-
-        tt = self.tt(df, sleep)
-        tt_perc = self.perc(tt, awake[0])
-
-        bu_projects = range(19, 25)
-        bu = self.p_time(df, bu_projects)
-        bu_perc = self.perc(bu, awake[0])
-
-        opk_projects = range(26, 31)
-        opk = self.p_time(df, opk_projects)
-        opk_perc = self.perc(opk, awake[0])
-
-        qlty = self.qlty(df, bu)
-
-        shared = self.p_time(df, 31)
-        shared_perc = self.perc(shared, awake[0])
-
-        output = (sleep_perc, sleep,
-                  awake[0],
-                  tt_perc, tt,
-                  bu_perc, bu,
-                  qlty[0], qlty[1], qlty[2],
-                  opk_perc, opk,
-                  shared_perc, shared,
-                  )
-        week = date.isocalendar(date.today())[1]
-
-        print(50 * '*', '\n Week #%s progress' % week)
-        print(' Sleep: %s%% (%sh) \n'
-              ' From awake time (%sh): \n'
-              '  Time Tracked: %s%% (%sh) \n'
-              '  Bu Project time: %s%% (%sh) \n'
-              '  Bu Qlty: hi, %s%%; mid, %s%%; lo, %s%%  \n'
-              '  Opk Project time: %s%% (%sh) \n'
-              '  Shared time: %s%% (%sh)'
-              % output)
-
+    pass
 
 class Year(object):
-    """Show how it's going the Year."""
+    """Refactor current year by filtering right from the db."""
 
-    def __init__(self, df, filters):
-        """Customize the object."""
-        self.df = df
-        self.filters = filters
-        utils = Utils(filters)
-        self.hours = utils.in_hours
-        self.sum = utils.SumTimes
-        self.perc = utils.Percents
-        self.p_time = utils.ProjectTime
-        self.awake = utils.AwakeTime
-        self.tt = utils.TimeTracked
-        self.bu_goal = utils.BuTarget
-        self.tag = utils.LabelTime
-        self.qlty = utils.Qualitiy
-
+    def __init__(self):
+        db = DataYear()
+        self.tag_times = db.Tags(period='year')
+        self.project_times = db.Project(period='year')
         self.Output()
 
     def TotalHours(self):
@@ -976,61 +877,70 @@ class Year(object):
 
         Using the commom functions, output quantities and percents.
         """
-        # db & awake.
-        df = self.df
-        awake = self.awake(df, self.TotalHours())
 
-        # Sleep.
-        sleep = self.p_time(df, 38)
-        sleep_perc = self.perc(sleep, self.TotalHours())
+        print(50 * '*', '\n' 'Year progress (V3)')
+        total_hours = self.TotalHours()
+        sleep = round(self.project_times['Shift.Sleep'])
+        sleep_perc = round(sleep * 100 / total_hours, 2)
 
-        # Time Tracked
-        tt = self.tt(df, sleep)
-        tt_perc = self.perc(tt, awake[0])
+        awake = round(total_hours - sleep, 2)
 
-        # BuildUp project Related
-        bu_projects = range(19, 25)
-        bu = self.p_time(df, bu_projects)
-        bu_perc = self.perc(bu, awake[0])
+        tt = 0 - sleep
+        for k in self.project_times:
+            tt = tt + self.project_times[k]
+        tt = round(tt, 2)
+        tt_perc = round(tt * 100 / awake, 2)
 
-        qlty = self.qlty(df, bu)
+        bu = round(self.project_times['BuildUp.CS'] +
+                   self.project_times['BuildUp.Math'] +
+                   self.project_times['BuildUp.FR'] +
+                   self.project_times['BuildUp.DE'] +
+                   self.project_times['BuildUp.Jap'] +
+                   self.project_times['BuildUp.Others'], 2
+                   )
+        bu_perc = round(bu * 100 / awake, 2)
 
-        # BuildUp tag
-        bu_tag = self.tag(df, 'BuildUp')
-        bu_tag_perc = self.perc(bu_tag, awake[0])
-        bu_tag_goal = self.bu_goal(bu_tag, awake[0])
+        bu_hi = round(self.tag_times['1-hi'] * 100 / bu)
+        bu_mid = round(self.tag_times['2-mid'] * 100 / bu)
+        bu_lo = round(self.tag_times['3-lo'] * 100 / bu)
 
-        core = self.tag(df, 'Core')
+        bu_total = round(self.tag_times['BuildUp'], 2)
+        bu_total_perc = round(bu_total * 100 / awake, 2)
+        bu_goal = round(bu_total - (awake * 0.2), 2)
+        if bu_goal >= 0:
+            bu_goal = ('%sh over goal' % bu_goal)
+        else:
+            bu_goal = ('%sh under goal' % abs(bu_goal))
+
+        core = round(self.tag_times['Core'], 2)
         week = date.today().isocalendar()[1]
         corerange = (week * 18, week * 20)
 
-        # OpK
-        opk_projects = range(26, 31)
-        opk = self.p_time(df, opk_projects)
-        opk_perc = self.perc(opk, awake[0])
-        opk_tries = self.p_time(df, 28)
-        if opk != 0:
-            opk_ratio = round(opk_tries * 100 / opk, 2)
-        else:
-            opk_ratio = 0
+        opk_tries = self.project_times['OpK.Tries.2018']
+        opk = round(self.project_times['OpK.Urgoiti.2018'] +
+                    self.project_times['OpK.GoBasquing.2018'] +
+                    self.project_times['OpK.Tourne.2018'] +
+                    self.project_times['OpK.Others.2018'] +
+                    opk_tries, 2
+                    )
+        opk_perc = round(opk * 100 / awake, 2)
+        opk_ratio = round(opk_tries * 100 / opk, 2)
 
-        # Shared Time
-        shared = self.p_time(df, 31)
-        shared_perc = self.perc(shared, awake[0])
+        shared = round(self.project_times['StuffBox.Shared'], 2)
+        shared_perc = round(shared * 100 / awake, 2)
 
         output = (sleep_perc, sleep,
-                  awake[0],
+                  awake,
                   tt_perc, tt,
                   bu_perc, bu,
-                  qlty[0], qlty[1], qlty[2],
-                  bu_tag_perc, bu_tag, bu_tag_goal,
+                  bu_hi, bu_mid, bu_lo,
+                  bu_total_perc, bu_total, bu_goal,
                   core, corerange,
                   opk_perc, opk,
                   opk_ratio,
                   shared_perc, shared,
                   )
 
-        print(50 * '*', '\n' 'Year progress')
         print(' Sleep: %s%% (%sh) \n'
               ' From awake time (%sh): \n'
               '  Time Tracked: %s%% (%sh) \n'
@@ -1041,38 +951,8 @@ class Year(object):
               '  Opk Project time: %s%% (%sh) \n'
               '  Opk Ratio (I+D): %s%% \n'
               '  Shared time: %s%% (%sh)'
-              % output)
-
-
-class YearV2(object):
-    """Refactor current year by filtering right from the db."""
-
-    def __init__(self):
-        print('YearV2 from here down')
-        db = DataYear()
-        self.tag_filter = db.Tags
-        self.project_filter = db.Project
-
-        self.Output()
-
-    def TotalHours(self):
-        """Calculate the elapsed hours in the Year.
-
-        Outputs a rounded float with the hours elapsed since Jan 1 00:00.
-        """
-        now = datetime.timestamp(datetime.now())
-        start = datetime(2018, 1, 1, 0, 0, 0, 0)
-        start = datetime.timestamp(start)
-        total_hours = round((now - start) / 3600, 2)
-        return total_hours
-
-    def Output(self):
-        """Output the data.
-
-        Using the commom functions, output quantities and percents.
-        """
-
-
+              % output
+              )
 
 class Graph(object):
     """Show powerful graphs to visualize the year progress."""
@@ -1332,20 +1212,8 @@ class Menu(object):
 
     def __new__(self):
         """Instantiate the data from db."""
-        db = DataYear()
-        labels = db.Labels()
-        df = db.Year()
-        # db.Tags(period='year', tag='BuildUp')
-        filters = Filters(labels)
-        df_week = filters.WeekFilter(df)
-        start = Settings.start_graph
-        df_graph = filters.StartFilter(df, start)
-
-        # option = input('Press [y] to perform a quick view (without backup). ')
-        # LastEntries(df, filters, days=5)
-        # Week(df_week, filters)
-        Year(df, filters)
-        YearV2()
+        Week()
+        Year()
         # Graph(df_graph, filters)
 
         # if option != 'y':
