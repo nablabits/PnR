@@ -575,6 +575,162 @@ class DataYear(object):
 
         return project_dict
 
+    def ProjectDay(self, start, project, day_list):
+        """Get the time per project and per day.
+
+        Returns a list of integers. Start must be a datetime.date
+        object, while project should be an integer or tuple of integers.
+        If a date is not in the list, insert 0 at that position.
+        """
+        # Check date
+        if not isinstance(start, date):
+            raise TypeError('Start should be a datetime.date')
+        else:
+            start = '\'' + str(start) + '\''
+
+        # Check project int
+        if not isinstance(project, int):
+            if not isinstance(project, tuple):
+                raise TypeError('Project should be a list of int or int')
+            else:
+                project = str(project)
+        else:
+            project = '(%s)' % project
+
+        field = ("SELECT sum(strftime('%s',stopped)-strftime('%s', started))" +
+                 " as lenght, date(started) as date")
+        table = ' FROM work'
+        constraint = (' WHERE date(started) >= %s ' % start +
+                      'AND project IN %s ' % project)
+        sorting = 'GROUP BY date(started) ORDER BY date(started) ASC'
+
+        query = field + table + constraint + sorting
+        data = self.db.query(query)
+
+        result = []
+
+        for day in day_list:
+            date_in = False
+            for row in data:
+                if str(day) == row.date:
+                    # DEBUG
+                    # print('testing %s with %s, found!' % (day, row.date))
+                    date_in, lenght = True, row.lenght
+            if date_in:
+                result.append(lenght)
+            else:
+                result.append(0)
+                # print('date %s not found, adding 0' % day)  # DEBUG
+
+        if not result:
+            print('Warning: query (%s, %s) gave no result, is it written ok?'
+                  % (project, start))
+
+        # DEBUG
+        # for row in result:
+        #     print(row)
+
+        return result
+
+    def TagDay(self, start, tag, day_list):
+        """Get the time per tag and per day.
+
+        Returns a list of integers. Start must be a datetime.date
+        object, while tag should be an str.
+        If a date is not in the list, insert 0 at that position.
+        """
+        # Check date
+        if not isinstance(start, date):
+            raise TypeError('Start should be a datetime.date')
+        else:
+            start = '\'' + str(start) + '\''
+
+        # Check tag str
+        if not isinstance(tag, str):
+            raise TypeError('Tag should be an str')
+        else:
+            tag = '\'' + tag + '\''
+
+        field = ("SELECT sum(strftime('%s',stopped)-strftime('%s', started))" +
+                 " as lenght, date(started) as date")
+        table = ' FROM work'
+        join1 = ' INNER JOIN work_tag ON work.id=work_id'
+        join2 = ' INNER JOIN tag ON tag.id=work_tag.tag_id'
+        constraint = (' WHERE date(started) >= %s ' % start +
+                      'AND tag.name = %s ' % tag)
+        sorting = 'GROUP BY date(started) ORDER BY date(started) ASC'
+
+        query = field + table + join1 + join2 + constraint + sorting
+        data = self.db.query(query)
+
+        result = []
+
+        for day in day_list:
+            date_in = False
+            for row in data:
+                if str(day) == row.date:
+                    # DEBUG
+                    # print('testing %s with %s, found!' % (day, row.date))
+                    date_in, lenght = True, row.lenght
+            if date_in:
+                result.append(lenght)
+            else:
+                result.append(0)
+                # print('date %s not found, adding 0' % day)  # DEBUG
+
+        if not result:
+            print('Warning: query (%s, %s) gave no result, is it written ok?'
+                  % (tag, start))
+
+        # DEBUG
+        # for row in result:
+        #     print(row)
+
+        return result
+
+    def AwakeDay(self, start, day_list):
+        """Get the awake time per day.
+
+        Returns a list of integers. Start must be a datetime.date
+        object.
+        If a date is not in the list, insert 86400 (24h) at that position.
+        """
+        # Check date
+        if not isinstance(start, date):
+            raise TypeError('Start should be a datetime.date')
+        else:
+            start = '\'' + str(start) + '\''
+
+        field = ("SELECT(86400 - sum(strftime('%s',stopped)-" +
+                 "strftime('%s', started))) as lenght, date(started) as date")
+        table = ' FROM work'
+        constraint = (' WHERE date(started) >= %s ' % start +
+                      'AND project = 38 ')
+        sorting = 'GROUP BY date(started) ORDER BY date(started) ASC'
+
+        query = field + table + constraint + sorting
+        data = self.db.query(query)
+
+        result = []
+
+        for day in day_list:
+            date_in = False
+            for row in data:
+                if str(day) == row.date:
+                    # DEBUG
+                    # print('testing %s with %s, found!' % (day, row.date))
+                    date_in, lenght = True, row.lenght
+            if date_in:
+                result.append(lenght)
+            else:
+                result.append(86400)
+                # print('date %s not found, adding 0' % day)  # DEBUG
+
+        # DEBUG
+        # for row in data:
+        #     print(row)
+
+        return result
 
 class Filters(object):
     """Define useful filters for the data extracted from db.
@@ -1107,23 +1263,35 @@ class Year(object):
 class Graph(object):
     """Show powerful graphs to visualize the year progress."""
 
-    def __init__(self, df, filters):
+    def __init__(self):
         """Customize the object."""
-        self.df = df
-        self.filters = filters
-        bu_ids = range(19, 25)
-        bu = self.PrepareData(df, bu_ids, label='BuildUp')
+        db = DataYear()
+        start = Settings.start_graph
+        day_list = self.DayList()
 
-        opk_ids = range(26, 31)
-        opk = self.PrepareData(df, opk_ids, label='OpK')
+        awake_data = db.AwakeDay(start, day_list)
 
-        shared_id = (31, )
-        shared = self.PrepareData(df, shared_id, label='Shared')
+        # BuildUp data
+        bu_projects = (19, 20, 21, 22, 23, 24)
+        bu_data = db.ProjectDay(start, bu_projects, day_list)
+        bu = self.PrepareData(bu_data, awake_data, 'BildUp')
 
-        bu_tag_id = ('BuildUp',)
-        bu_tag = self.PrepareData(df, bu_tag_id, label='Bu Total')
+        # BuildUp total data
+        bu_tag = 'BuildUp'
+        bu_tag_data = db.TagDay(start, bu_tag, day_list)
+        bu_total = self.PrepareData(bu_tag_data, awake_data, 'BildUp total')
 
-        to_plot = (bu, opk, shared, bu_tag)
+
+        # Opk data
+        opk_projects = (26, 27, 28, 29, 30)
+        opk_data = db.ProjectDay(start, opk_projects, day_list)
+        opk = self.PrepareData(opk_data, awake_data, 'Opk')
+
+        shared_projects = (31)
+        shared_data = db.ProjectDay(start, shared_projects, day_list)
+        shared = self.PrepareData(shared_data, awake_data, 'Shared')
+
+        to_plot = (bu, opk, shared, bu_total)
         self.PlotIt(to_plot)
 
     def DayList(self):
@@ -1141,47 +1309,12 @@ class Graph(object):
             start = start + delta
         return result
 
-    def PerDay(self, day_list, data):
-        """List of elapsed time in the activity per day (& could be 0).
-
-        Outputs a list of float values.
-        """
-        result = []
-        count = 0
-        for day in day_list:
-            count += 1
-            have_entry = False
-            lenght = 0
-            for entry in data:
-                # print(day, entry.day, entry.lenght)
-
-                if entry.started == str(day):
-                    count += 1
-                    have_entry = True
-                    if not entry.lenght:
-                        lenght = lenght + 0
-                    else:
-                        lenght = lenght + entry.lenght
-                    # DEBUG: print info
-                    # print(day, entry.started, entry.lenght, entry.name,
-                    #       lenght)
-
-            if have_entry is False:
-                result.append(0)
-                # print(day, 0)  # DEBUG
-            else:
-                result.append(lenght)
-        # print(count, 'loops')  # DEBUG
-        result = [float(i) for i in result]  # convert all items into floats
-
-        # DEBUG: print list
-        # for i in result:
-        #     print(i)
-
-        return result
-
     def Aggregation(self, values):
         """Get the acumulated hours per day. Outputs a list of floats."""
+        if not isinstance(values, list):
+            print(type(values))
+            raise TypeError('Aggregation values should be in a list')
+
         idx = 1
         result = []
         for i in values:
@@ -1191,89 +1324,26 @@ class Graph(object):
         # print(result)
         return result
 
-    def AwakeData(self, df):
-        """Get a list of awake hours.
-
-        Awake time is used for calculate the ratio of activities, so it must be
-        calculated once.
-        """
-        sleep = self.filters.ProjectFilter(df, 38)
-        day_list = self.DayList()
-        sleep_per_day = self.PerDay(day_list, sleep)
-        awake_per_day = [(86400 - i) for i in sleep_per_day]  # In seconds
-        agg_awake = self.Aggregation(awake_per_day)
-        return agg_awake
-
-    def PrepareData(self, df, label_id, label):
-        """Transform the original dataframe into a valid data for graph.
-
-        Df is a list of record.Records, they must be transformed into a list of
-        values per day (amount of hours) so graph can understand it. First
-        we'll filter the data to match project (int) or the tag (str), then,
-        we'll get the time per day & the aggregated data as a list of floats.
-
-        Finally, create a dic
-        with the label & the data.
-        """
-        # Label id should be a list
-        if not isinstance(df, list):
-            raise TypeError('Label id should be a list.')
-
-        # Filter the data
-        df_filtered = []
-        for id in label_id:
-            # print('(1041) filtering graph', id)  # DEBUG
-            if isinstance(id, int):
-                filtered = self.filters.ProjectFilter(df, id)
-                if filtered != df:
-                    df_filtered.append(filtered)
-                else:
-                    # DEBUG: print warning
-                    # print('(1046)filter returned the same data, none append')
-                    pass
-            elif isinstance(id, str):
-                filtered = self.filters.LabelFilter(df, id)
-                if filtered != df:
-                    df_filtered.append(filtered)
-                else:
-                    # DEBUG: print warning
-                    # print('(1046)filter returned the same data, none append')
-                    pass
-
-        # Combine into a single tuple so PerDay() can understand
-        combined = []
-        for element in df_filtered:
-            if isinstance(element, list) or isinstance(element, tuple):
-                for item in element:
-                    combined.append(item)
-            else:
-                combined.append(element)
-
-        # Get the data per day
-        # print('(1059) calculate data per day') # DEBUG
-        day_list = self.DayList()
-        data_per_day = self.PerDay(day_list, combined)
-
-        # Get the ratio between awake and the activity
-        awake = self.AwakeData(df)
-
-        # And the acumulated data
-        aggregated = self.Aggregation(data_per_day)
-
-        # awake & aggregated must match
-        if len(awake) != len(aggregated):
+    def Ratio(self, over, under):
+        """Get the ratio between Buildup & awake time per day."""
+        if len(over) != len(under):
+            print(len(over), len(under))
             raise ValueError('awake & aggregated don\'t match')
+        result = []
+        for k in over:
+            idx = over.index(k)
+            # print(idx)
+            r = k * 100 / under[idx]
+            result.append(r)
 
-        data = []
-        for k in aggregated:
-            idx = aggregated.index(k)
-            # print(k, awake[idx])  # DEBUG
-            r = k * 100 / awake[idx]
-            data.append(r)
+        return result
 
-        # Finally, create the dict and return it.
+    def PrepareData(self, data, awake_data, label):
+        agg = self.Aggregation(data)
+        awake_agg = self.Aggregation(awake_data)
+        ratio = self.Ratio(agg[:-1], awake_agg[:-1])
         result = {'label': label,
-                  'data': data}
+                  'data': ratio}
         return result
 
     def PlotIt(self, data):
@@ -1362,10 +1432,10 @@ class Menu(object):
 
     def __new__(self):
         """Instantiate the data from db."""
-        LastEntries(5)
+        LastEntries(3)
         Week()
         Year()
-        # Graph(df_graph, filters)
+        Graph()
 
         # if option != 'y':
         #     Compress()
