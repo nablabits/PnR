@@ -12,6 +12,7 @@ from datetime import date, datetime, timedelta, time
 from settings import Settings
 from matplotlib import pyplot as plt
 
+
 class TrackDB(object):
     """Get the last db file & unpack it into a tmp folder."""
 
@@ -160,7 +161,8 @@ class DataYear(object):
 
         # The raw query
         df = self.db.query(query)
-        print('db hit (last entries)')  # to measure how many times we hit the db
+        # to measure how many times we hit the db
+        print('db hit (last entries)')
         return df
 
     def Period(self, period):
@@ -412,8 +414,6 @@ class LastEntries(object):
     def __init__(self, days):
         """Customize the object."""
         self.days = days
-
-        # return the entries
         self.Output()
 
     def DateList(self):
@@ -731,6 +731,8 @@ class Graph(object):
         shared = self.PrepareData(shared_data, awake_data, 'Shared')
 
         to_plot = (bu, opk, shared, bu_total)
+
+        TrackDB().CleanUp()  # & Clean the tmp folder.
         self.PlotIt(to_plot)
 
     def DayList(self):
@@ -871,14 +873,13 @@ class Menu(object):
 
     def __new__(self):
         """Instantiate the data from db."""
-        LastEntries(3)
+        LastEntries(1)
         Week()
         Year()
-        Graph()
 
-        # if option != 'y':
-        #     Compress()
-
-        TrackDB().CleanUp()  # & Clean the tmp folder.
+        if input('Press g to show graph: ') == 'g':
+            Graph()
+        if input('Press k to backup: ') == 'k':
+            Compress()
 
 show_menu = Menu()
