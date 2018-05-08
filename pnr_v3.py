@@ -413,9 +413,9 @@ class DataYear(object):
 class LastEntries(object):
     """Print last entries for the daily summary."""
 
-    def __init__(self, days):
+    def __init__(self):
         """Customize the object."""
-        self.days = days
+        self.days = Settings.last_entries_days
         self.Output()
 
     def DateList(self):
@@ -886,7 +886,7 @@ class Menu(object):
 
     def __new__(self):
         """Instantiate the data from db."""
-        LastEntries(1)
+        LastEntries()
         Week()
         Year()
         Graph()

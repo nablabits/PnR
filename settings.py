@@ -14,5 +14,8 @@ class Settings(object):
               'dev',
               ]
 
+    # Days to show on last entries summary
+    last_entries_days = 2
+
     # Graph start date
     start_graph = date(2018, 1, 1)
