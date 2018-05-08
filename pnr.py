@@ -1,4 +1,4 @@
-"""This script provides useful data for final day's summary. V2
+"""Provide useful data for final day's summary. V3
 
 Perform a backup of the files as well.
 """
@@ -11,263 +11,6 @@ import records
 from datetime import date, datetime, timedelta, time
 from settings import Settings
 from matplotlib import pyplot as plt
-from math import floor
-
-
-class Utils(object):
-    """Define some useful algorithms & common functions.
-
-    This object's methods are used by both Week & Year outputs.
-    """
-
-    def __init__(self, filters):
-        """Init the object."""
-        self.filters = filters
-
-    def binary(self, numberlist, number):
-        """Perform a number binary search in a given number list.
-
-        Returns a list containing a bool (True if number is found) & a loop
-        count.
-        """
-        numberlist = sorted(numberlist, key=int)
-        max, min = numberlist[-1], numberlist[0]
-        lenght = len(numberlist) - 1
-        lo, hi = 0, lenght  # lo-hi boundaries
-        result, loop = False, True
-        cur_value = numberlist[-1]
-        count = 0
-
-        if number < min:
-            # print(number, 'under numberlist')  # DEBUG
-            loop = False
-        if number > max:
-            # print(number, 'over numberlist')  # DEBUG
-            loop = False
-        if cur_value == number:
-            result = True
-            loop = False
-
-        while cur_value != number and loop:
-            count += 1
-            avg_idx = int(floor((lo + hi) / 2))  # get the mid index
-            cur_value = numberlist[avg_idx]  # get current value
-
-            if lo >= lenght or hi > lenght:
-                # print('not in list')  # DEBUG
-                break
-
-            # print('testing', cur_value, number)  # DEBUG
-
-            if cur_value < number:
-                lo = avg_idx + 1
-                # DEBUG
-                # print("[oh, too low]")
-                # print(lo, hi, lenght)
-                if numberlist[lo] > numberlist[hi]:
-                    break
-            elif cur_value > number:
-                hi = avg_idx - 1
-                # print("[oh, too high]")  # DEBUG
-                if numberlist[lo] > numberlist[hi]:
-                    break
-            elif cur_value == number:
-                # print('Numbers match!', cur_value, number)  # DEBUG
-                result = True
-                break
-
-        return (result, count)
-
-    def in_hours(self, number):
-        """Convert the given number to hours.
-
-        Returns a rounded float. Input in seconds
-        """
-        result = round(number / 3600, 2)
-        return result
-
-    def SumTimes(self, df):
-        """Sum all the lenghts in a data frame.
-
-        First checks the data input (should be a list of records.Record, a
-        records.Record or a RecordCollection. Then, check if df is None (since
-        non effect filters output NoneType).
-        Finally, sum all the lenghts and output a rounded float.
-        """
-        # first, check that the data is appropiate.
-        check = False
-        if isinstance(df, list):
-            for row in df:
-                if isinstance(row, records.Record):
-                    check = True
-                else:
-                    print(type(row))
-        elif isinstance(df, records.Record):
-            check = True
-        elif isinstance(df, records.RecordCollection):
-            check = True
-
-        if not df:
-            # print(type(df))
-            pass
-
-        # DEBUG:
-        # for row in df:
-        #     print(row.id, row.hour, row.name)
-
-        total = 0
-        if check is True:
-            for row in df:
-                if not row.name:
-                    delta = 0
-                if not row.lenght:  # On going processes have no lenght
-                    start = (row.started + ' ' + row.hour)
-                    start = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
-                    end = datetime.now()
-                    delta = (end.timestamp() - start.timestamp())
-                else:
-                    delta = row.lenght
-                    if delta < 0:
-                        print(delta, row.id, row.started, row.hour)
-                total = total + delta
-
-        total = round(total, 2)
-
-        return total
-
-    def Percents(self, value, total):
-        """Calculate the ratio between two numbers.
-
-        Outputs a rounded float. Avoids percents over 100.
-        """
-        if total < value:
-            # print(value, total)  # DEBUG
-            raise ValueError('Value is higher than total')
-        if total == 0:  # avoid division by 0
-            result = 0
-        else:
-            result = round(value * 100 / total, 2)
-        return result
-
-    def ProjectTime(self, df, project):
-        """Output the hours of a given project in a given time.
-
-        Generic function to be applied to any df & any project. The project
-        input could be a tuple a range or a single number.
-        Outputs a rounded float (since sum_entries outputs so) or 0 if
-        filter has no effect.
-        """
-        value = 0
-        # input is a list or a range
-        if isinstance(project, tuple) or isinstance(project, range):
-            for i in project:
-                df_filtered = self.filters.ProjectFilter(df, i)
-                # since a non-effect filter returns NoneType
-                if df_filtered is None:
-                    addvalue = 0
-                else:
-                    addvalue = self.in_hours(self.SumTimes(df_filtered))
-                # print('adding %s hours from %s' % (addvalue, i))  # DEBUG
-                value = addvalue + value
-            value = round(value, 2)
-        # input is an int
-        else:
-            df_filtered = self.filters.ProjectFilter(df, project)
-            # since a non-effect filter returns NoneType
-            if df_filtered is None:
-                addvalue = 0
-            value = self.in_hours(self.SumTimes(df_filtered))
-            # print('adding %s hours from %s' % (value, project))  # DEBUG
-        return value
-
-    def LabelTime(self, df, label):
-        """Output the hours of a given label in a given time.
-
-        Generic function to be applied to any df & any label. For the moment
-        the label's input should be a string with right one label name.
-        Returns a rounded float (since sum_entries outputs so), or 0 if filter
-        has no effect.
-        """
-        value = 0
-        df_filtered = self.filters.LabelFilter(df, label)
-        # since a non-effect filter returns df again
-        if not df_filtered:
-            value = 0
-        else:
-            value = self.in_hours(self.SumTimes(df_filtered))
-        return value
-
-    def AwakeTime(self, df, total_hours):
-        """Calculate the awake in a given period.
-
-        Awake time is the base to calculate percents.
-        Outputs a list containing: rounded float for the hours
-        & percent over total.
-        """
-        sleep = self.ProjectTime(df, 38)
-        value = round(total_hours - sleep, 2)  # discount sleep
-        perc = self.Percents(value, total_hours)
-        result = (value, perc)
-        return result
-
-    def TimeTracked(self, df, sleep):
-        """Output the hours of time tracked.
-
-        Returns a rounded float (since SumTimes does so).
-        """
-        value = self.in_hours(self.SumTimes(df))
-        value = round(value - sleep, 2)  # since df includes sleep time
-        return value
-
-    def BuTarget(self, bu, awake):
-        """Calculate the hours over/under the goal.
-
-        The goal or this year is 20% BuildUp so, this fn lets visualize the
-        progress of the goal.
-        Returns a string like '+20h over goal'
-        """
-        goal = 20 * awake / 100
-        diff = round(bu - goal, 2)
-        if diff > 0:
-            output = '+' + str(abs(diff)) + 'h over goal'
-        else:
-            output = ' ' + str(abs(diff)) + 'h under goal'
-        return output
-
-    def Qualitiy(self, df, bu):
-        """Output the quality of BuildUp.
-
-        Returns a list containing the percents of quality.
-        """
-        df_hi = self.filters.LabelFilter(df, '1-hi')
-        df_mid = self.filters.LabelFilter(df, '2-mid')
-        df_lo = self.filters.LabelFilter(df, '3-lo')
-
-        # DEBUG
-        # for item in df_hi:
-        #     print(item.id, item.name, item.started)
-
-        if df_hi == df:
-            sum_hi = 0
-        else:
-            sum_hi = self.in_hours(self.SumTimes(df_hi))
-        if df_mid == df:
-            sum_mid = 0
-        else:
-            sum_mid = self.in_hours(self.SumTimes(df_mid))
-        if df_lo == df:
-            sum_lo = 0
-        else:
-            sum_lo = self.in_hours(self.SumTimes(df_lo))
-
-        # DEBUG
-        # print(sum_hi, sum_mid, sum_lo)
-
-        result = (self.Percents(sum_hi, bu),
-                  self.Percents(sum_mid, bu),
-                  self.Percents(sum_lo, bu))
-
-        return result
 
 
 class TrackDB(object):
@@ -372,10 +115,7 @@ class TrackDB(object):
 
 
 class DataYear(object):
-    """Group the year data in an object.
-
-    We'll perform a single call to the db and then manipulate the data.
-    """
+    """Queries for the database."""
 
     def __init__(self):
         """Start the object."""
@@ -387,12 +127,10 @@ class DataYear(object):
         # Clean the db, deleted entries return weird data
         self.db.query("DELETE FROM work WHERE project <= 1")
 
-        tdb.CleanUp()  # & Clean the tmp folder.
+    def LastEntriesQuery(self, day):
+        """Create an object with all the data in a given day.
 
-    def Year(self):
-        """Create an object with all the data of the year.
-
-        Returns a DataFrame (df) with all the entries in the year.
+        Returns a DataFrame (df) with all the entries.
         """
         # Fields of the query
         fields = {'work.id': 'id',
@@ -401,7 +139,6 @@ class DataYear(object):
                   'details': 'details',
                   'date(started)': 'started',
                   'time(started)': 'hour',
-                  'date(stopped)': 'stopped',
                   "strftime('%s',stopped)-strftime('%s', started)": 'lenght'
                   }
 
@@ -412,8 +149,11 @@ class DataYear(object):
             fields_str = fields_str + r
         fields_str = 'SELECT ' + fields_str[0:-2]
 
+        day = '\'' + str(day) + '\''
+        # day = '\'2018-01-01\''
+
         table = ' FROM work'
-        constraint = ' WHERE date(started) >= \'2018-01-01\' '
+        constraint = (' WHERE date(started) = %s ' % day)
         order = 'ORDER BY datetime(started) ASC'
 
         # Perform the one-for-all query
@@ -421,46 +161,40 @@ class DataYear(object):
 
         # The raw query
         df = self.db.query(query)
-        print('db hit')  # to measure how many times we hit the db
+        # to measure how many times we hit the db
+        # print('db hit (last entries)')
         return df
 
-    def Labels(self):
-        """Create an object with the labels per id.
-
-        Labels are in a different table, so list them to be applied on
-        different filters. Returns a DataFrame (df) with all of them.
-        """
-        # Fields in the query
-        fields = {'work.id': 'id',
-                  'tag.name': 'tag'}
-
-        # Build field string.
-        fields_str = ''
-        for k in fields:
-            r = (k + ' as \'' + fields[k] + '\', ')
-            fields_str = fields_str + r
-        fields_str = 'SELECT ' + fields_str[0:-2]
-
-        table = ' FROM work'
-        join1 = ' INNER JOIN work_tag ON work.id=work_id'
-        join2 = ' INNER JOIN tag ON tag.id=work_tag.tag_id'
-        constraint = ' WHERE date(started) >= \'2018-01-01\''
-        order = ' ORDER BY work.id ASC'
-
-        # Perform the one-for-all query
-        query = fields_str + table + join1 + join2 + constraint + order
-
-        df = self.db.query(query)
-        print('db hit (labels)')  # to measure how many times we hit the db
-        return df
+    def Period(self, period):
+        """Check if period is valid (and if not, return a valid one)."""
+        if period == 'year':
+            period = '\'2018-01-01\''
+        elif period == 'week':
+            today = date.today()
+            delta = timedelta(days=-1)
+            start = today
+            while start.isocalendar()[2] != 1:  # reduce days until reach mon
+                start = start + delta
+            period = '\'' + str(start) + '\''
+        elif isinstance(period, date):
+            period = '\'' + str(period) + '\''
+        else:
+            print('Warning: period (%s) was not' % period +
+                  ' understood using default(year)')
+            period = '\'2018-01-01\''
+        return period
 
     def Tags(self, period):
-        """Create an object that returns sum times per tag.
+        """Create an object that returns sum times per tag and per period.
 
         Filter entries with python takes a long time, so we filter and sum the
         data from the query itself. Period represents the time filter (week or
-        year).
+        year allowed).
+        Returns a dictionary with al the values for each tag.
         """
+        # first check if Period is valid
+        period = self.Period(period)
+
         fields = {"sum(strftime('%s',stopped)-" +
                   "strftime('%s', started))": 'lenght',
                   'tag.name': 'tag'}
@@ -475,242 +209,206 @@ class DataYear(object):
         table = ' FROM work'
         join1 = ' INNER JOIN work_tag ON work.id=work_id'
         join2 = ' INNER JOIN tag ON tag.id=work_tag.tag_id'
-        constraint = ' WHERE date(started) >= \'2018-01-01\' '
+        constraint = (' WHERE date(started) >= %s ' % period)
         sorting = 'GROUP BY tag ORDER BY work.id ASC'
 
         query = fields_str + table + join1 + join2 + constraint + sorting
+        result = self.db.query(query)
+        # to measure how many times we hit the db # DEBUG
+        # print('Tag: db hit, %s period' % period)
 
+        tag_dict = {}
+        for row in result:
+            # print(row.tag, row.lenght) # DEBUG
+            tag_dict[row.tag] = row.lenght / 3600
 
-class Filters(object):
-    """Define useful filters for the data extracted from db.
+        return tag_dict
 
-    Filters return always a list of records.
-    """
+    def Project(self, period):
+        # first check if Period is valid
+        period = self.Period(period)
 
-    def __init__(self, labels):
-        """Create the object. Labels are needed to build the label filter."""
-        self.labels = labels
+        fields = {"sum(strftime('%s',stopped)-" +
+                  "strftime('%s', started))": 'lenght',
+                  'project_name': 'project'}
+        # Build the field string for the query
+        fields_str = ''
+        for k in fields:
+            r = (k + ' as \'' + fields[k] + '\', ')
+            fields_str = fields_str + r
+        fields_str = 'SELECT ' + fields_str[0:-2]
+        table = ' FROM work'
+        constraint = (' WHERE date(started) >= %s ' % period)
+        sorting = 'GROUP BY project ORDER BY work.id ASC'
 
-    def DfType(self, df, filter):
-        """Check the df as input or output.
+        query = fields_str + table + constraint + sorting
+        result = self.db.query(query)
+        # to measure how many times we hit the db # DEBUG
+        # print('Project: db hit, %s period' % period)
+        project_dict = {}
+        for row in result:
+            # print(row.tag, row.lenght) # DEBUG
+            project_dict[row.project] = row.lenght / 3600
 
-        Raise an error if input/output data have errors. Allowed types are:
-        records.RecordCollection or a list containing records.Record entries.
-        Filter is used to trace where are the errors.
-        Now, since filters can output None type, they are allowed.
+        return project_dict
+
+    def ProjectDay(self, start, project, day_list):
+        """Get the time per project and per day.
+
+        Returns a list of integers. Start must be a datetime.date
+        object, while project should be an integer or tuple of integers.
+        If a date is not in the list, insert 0 at that position.
         """
-        result = None
-        # print('DFType Test')
-        if isinstance(df, list):
-            error = False
-            for row in df:
-                if not isinstance(row, records.Record):
-                    error = True
-            if error:
-                raise ValueError('The list of %s contains mixed data' % filter)
-            # result = print('list', filter)  # DEBUG
-
-        elif isinstance(df, records.RecordCollection):
-            pass
-            # result = print('Records collection', filter)  # DEBUG
-
-        elif not df:
-            pass
-            # print(type(df), filter)  # DEBUG
-
+        # Check date
+        if not isinstance(start, date):
+            raise TypeError('Start should be a datetime.date')
         else:
-            result = print(type(df), filter)
+            start = '\'' + str(start) + '\''
 
-        # print('DFType test end', result)
-        return result
+        # Check project int
+        if not isinstance(project, int):
+            if not isinstance(project, tuple):
+                raise TypeError('Project should be a list of int or int')
+            else:
+                project = str(project)
+        else:
+            project = '(%s)' % project
 
-    def WeekFilter(self, df):
-        """Filter current week's entries.
+        field = ("SELECT sum(strftime('%s',stopped)-strftime('%s', started))" +
+                 " as lenght, date(started) as date")
+        table = ' FROM work'
+        constraint = (' WHERE date(started) >= %s ' % start +
+                      'AND project IN %s ' % project)
+        sorting = 'GROUP BY date(started) ORDER BY date(started) ASC'
 
-        This filter checks the current week and filters the entries that match
-        that date. Returns a list of records.Record.
-        """
-        # First check the df
-        self.DfType(df, filter='(Week Filter, input)')
-
-        # Now, determine last week
-        today = date.today()
-        delta = timedelta(days=-1)
-        start = today
-        while start.isocalendar()[2] != 1:  # reduce days until reach monday
-            start = start + delta
-
-        # Now, get the entries
-        result = []
-        for entry in df:
-            cur_date = datetime.strptime(entry.started, '%Y-%m-%d').date()
-            if cur_date >= start:
-                result.append(entry)
-
-        # DEBUG:
-        # for row in result:
-        #     print(row.id, row.hour, row.name)
-
-        # Warning if filter has no effect
-        if not result:
-            # DEBUG
-            # print('Filter had no effect (week', start,
-            #       ') Output None')
-            result = None
-
-        # Check output
-        self.DfType(result, filter='(Week Filter, output)')
-
-        return result
-
-    def DayFilter(self, df, day):
-        """Filter entries in a given day.
-
-        This function filters the entries started in the current day. Returns a
-        list of records.Record
-        """
-        # First check the df
-        self.DfType(df, filter='(Day Filter, input)')
-
-        if not isinstance(day, date):
-            raise TypeError('Date not recognized')
+        query = field + table + constraint + sorting
+        # print('ProjectDay: db hit')
+        data = self.db.query(query)
 
         result = []
-        for entry in df:
-            curr_date = datetime.strptime(entry.started, '%Y-%m-%d').date()
-            if curr_date == day:
-                result.append(entry)
 
-        # DEBUG: results of the filter
-        # for row in result:
-        #     print(row.id, row.started, row.name)
+        for day in day_list:
+            date_in = False
+            for row in data:
+                if str(day) == row.date:
+                    # DEBUG
+                    # print('testing %s with %s, found!' % (day, row.date))
+                    date_in, lenght = True, row.lenght
+            if date_in:
+                result.append(lenght)
+            else:
+                result.append(0)
+                # print('date %s not found, adding 0' % day)  # DEBUG
 
         if not result:
-            # DEBUG
-            # print('Filter had no effect (day', str(day),
-            #       ') Output None')
-            result = None
-
-        # Check output
-        self.DfType(result, filter='(Day Filter, output)')
-
-        return result
-
-    def LabelFilter(self, df, label):
-        """Filter data with the selected label.
-
-        This function filters the entries which match with the given label
-        using a binary search. Outputs a list of records.Record.
-        """
-        # first check the df
-        self.DfType(df, filter='(Label Filter, input)')
-
-        # Get the work ids with selected label
-        tags = self.labels
-        tag_id_list = []
-        utils = Utils(self)
-
-        # Build the tag list
-        for entry in tags:
-            if entry.tag == label:
-                # print(entry.id, entry.tag)  # DEBUG
-                tag_id_list.append(entry.id)
+            print('Warning: query (%s, %s) gave no result, is it written ok?'
+                  % (project, start))
 
         # DEBUG
-        # for i in tag_id_list:
-        #     print(i)
-
-        # Now compare tag list with data frame using bin search
-        result = []
-        count = 0
-        for entry in df:
-            count += 1
-
-            # DEBUG
-            # print('testing', entry.id, entry.started, entry.name)
-
-            binary = utils.binary(tag_id_list, entry.id)
-            if binary[0] is True:
-                # print('adding', entry.id)
-                result.append(entry)
-                count = count + binary[1]
-
-        # DEBUG print result
         # for row in result:
-        #     print(row.id, row.started, row.hour, row.name)
-        # print('in', count, 'loops')
-
-        # Warning if filter have no effect
-        if not result:
-            # DEBUG
-            # print('Filter had no effect (label', label,
-            #       ') Output NoneType')
-            result = None
-
-        # Check type of df DEBUG
-        self.DfType(result, filter='(Label Filter, output)')
+        #     print(row)
 
         return result
 
-    def ProjectFilter(self, df, project):
-        """Filter by project.
+    def TagDay(self, start, tag, day_list):
+        """Get the time per tag and per day.
 
-        This function filters the df which match with a given project. Project
-        input should be an int. Returns a list of records.Record or NoneType if
-        filter didn't work.
+        Returns a list of integers. Start must be a datetime.date
+        object, while tag should be an str.
+        If a date is not in the list, insert 0 at that position.
         """
-        self.DfType(df, filter='(Project Filter)')  # Check type of df DEBUG
-
-        result = []
-        for entry in df:
-            if entry.project == project:
-                result.append(entry)
-
-        # DEBUG:
-        # for row in result:
-        #     print(row.id, row.hour, row.name, row.project)
-
-        # Warning if filter have no effect
-        if not result:
-            # DEBUG: print warning
-            # print('Filter had no effect (project', project,
-            #       ') Output NoneType')
-            result = None
-
-        # Check type of df DEBUG
-        self.DfType(result, filter='(Project Filter, output)')
-
-        return result
-
-    def StartFilter(self, df, start):
-        """Filter entries from a start date.
-
-        This function filters the data from the start date up to today.
-        """
-        # First check the df
-        self.DfType(df, filter='(Day Filter, input)')
-
+        # Check date
         if not isinstance(start, date):
-            raise TypeError('Date not recognized')
+            raise TypeError('Start should be a datetime.date')
+        else:
+            start = '\'' + str(start) + '\''
+
+        # Check tag str
+        if not isinstance(tag, str):
+            raise TypeError('Tag should be an str')
+        else:
+            tag = '\'' + tag + '\''
+
+        field = ("SELECT sum(strftime('%s',stopped)-strftime('%s', started))" +
+                 " as lenght, date(started) as date")
+        table = ' FROM work'
+        join1 = ' INNER JOIN work_tag ON work.id=work_id'
+        join2 = ' INNER JOIN tag ON tag.id=work_tag.tag_id'
+        constraint = (' WHERE date(started) >= %s ' % start +
+                      'AND tag.name = %s ' % tag)
+        sorting = 'GROUP BY date(started) ORDER BY date(started) ASC'
+
+        query = field + table + join1 + join2 + constraint + sorting
+        data = self.db.query(query)
+        # print('TagDay: db hit')
 
         result = []
-        for entry in df:
-            curr_date = datetime.strptime(entry.started, '%Y-%m-%d').date()
-            if curr_date >= start:
-                result.append(entry)
 
-        # DEBUG: results of the filter
-        # for row in result:
-        #     print(row.id, row.started, row.name)
+        for day in day_list:
+            date_in = False
+            for row in data:
+                if str(day) == row.date:
+                    # DEBUG
+                    # print('testing %s with %s, found!' % (day, row.date))
+                    date_in, lenght = True, row.lenght
+            if date_in:
+                result.append(lenght)
+            else:
+                result.append(0)
+                # print('date %s not found, adding 0' % day)  # DEBUG
 
         if not result:
-            # DEBUG
-            print('Filter had no effect (day', str(start),
-                  ') Output NoneType')
-            result = None
+            print('Warning: query (%s, %s) gave no result, is it written ok?'
+                  % (tag, start))
 
-        # Check output
-        self.DfType(result, filter='(Day Filter, output)')
+        # DEBUG
+        # for row in result:
+        #     print(row)
+
+        return result
+
+    def AwakeDay(self, start, day_list):
+        """Get the awake time per day.
+
+        Returns a list of integers. Start must be a datetime.date
+        object.
+        If a date is not in the list, insert 86400 (24h) at that position.
+        """
+        # Check date
+        if not isinstance(start, date):
+            raise TypeError('Start should be a datetime.date')
+        else:
+            start = '\'' + str(start) + '\''
+
+        field = ("SELECT(86400 - sum(strftime('%s',stopped)-" +
+                 "strftime('%s', started))) as lenght, date(started) as date")
+        table = ' FROM work'
+        constraint = (' WHERE date(started) >= %s ' % start +
+                      'AND project = 38 ')
+        sorting = 'GROUP BY date(started) ORDER BY date(started) ASC'
+
+        query = field + table + constraint + sorting
+        data = self.db.query(query)
+        # print('AwakeDay: db hit')
+
+        result = []
+
+        for day in day_list:
+            date_in = False
+            for row in data:
+                if str(day) == row.date:
+                    # DEBUG
+                    # print('testing %s with %s, found!' % (day, row.date))
+                    date_in, lenght = True, row.lenght
+            if date_in:
+                result.append(lenght)
+            else:
+                result.append(86400)
+                # print('date %s not found, adding 0' % day)  # DEBUG
+
+        # DEBUG
+        # for row in data:
+        #     print(row)
 
         return result
 
@@ -718,14 +416,9 @@ class Filters(object):
 class LastEntries(object):
     """Print last entries for the daily summary."""
 
-    def __init__(self, df, filters, days):
+    def __init__(self):
         """Customize the object."""
-        self.df = df
-        self.filters = filters
-        self.days = days
-        self.hours = Utils(filters).in_hours
-
-        # return the entries
+        self.days = Settings.last_entries_days
         self.Output()
 
     def DateList(self):
@@ -752,11 +445,13 @@ class LastEntries(object):
         Returns a list that contains n lists (one per day) each one with a
         records.Record, since filters always output a list.
         """
+        db = DataYear()
+        last_entries = db.LastEntriesQuery
         date_list = self.DateList()
         df = []
 
         for i in date_list:
-            data_filtered = self.filters.DayFilter(self.df, i)
+            data_filtered = last_entries(i)
             df.append(data_filtered)
 
         return df
@@ -767,15 +462,18 @@ class LastEntries(object):
         Take each one of the days in the df and print the entries. The input is
         list with n lists (one per day) each one with a records.Record.
         """
-        for day in self.DataFrame():
+        df = self.DataFrame()
+        day = 0
+        for entry in df:
             print(50 * '*')
-            print(day[0].started)
-            for row in day:
+            print(self.DateList()[day])
+            day += 1
+            for row in entry:
                 hour = row.hour[0:5]
                 if not row.lenght:
                     lenght = 'On going'
                 else:
-                    lenght = str(self.hours(row.lenght)) + 'h'
+                    lenght = str(round(row.lenght / 3600, 2)) + 'h'
                 name = row.name
                 if not row.details:
                     details = 'No comments'
@@ -791,21 +489,10 @@ class LastEntries(object):
 
 
 class Week(object):
-    """Show how it's going the week."""
-
-    def __init__(self, df, filters):
-        """Customize the object."""
-        self.df = df
-        self.filters = filters
-        utils = Utils(filters)
-        self.hours = utils.in_hours
-        self.sum = utils.SumTimes
-        self.perc = utils.Percents
-        self.p_time = utils.ProjectTime
-        self.awake = utils.AwakeTime
-        self.tt = utils.TimeTracked
-        self.bu_goal = utils.BuTarget
-        self.qlty = utils.Qualitiy
+    def __init__(self):
+        db = DataYear()
+        self.tag_times = db.Tags(period='week')
+        self.project_times = db.Project(period='week')
 
         self.Output()
 
@@ -828,44 +515,83 @@ class Week(object):
         total_hours = round((now - start) / 3600, 2)
         return total_hours
 
+    def TestKeys(self, test_type, keyname):
+        """Test the keys to avoid KeyError.
+
+        Since some projects in the week could not have no key yet, test it and
+        return 0 in case. Otherwise, return the value for the key.
+        """
+        if test_type == 'project':
+            try:
+                value = self.project_times[keyname]
+            except KeyError:
+                # print('Key (%s) not found adding 0' % keyname)  # DEBUG
+                value = 0
+        elif test_type == 'tag':
+            try:
+                value = self.tag_times[keyname]
+                # break
+            except KeyError:
+                # print('Key (%s) not found adding 0' % keyname)  # DEBUG
+                value = 0
+        else:
+            raise ValueError('type unknown')
+        return value
+
     def Output(self):
         """Output the data.
 
         Using the commom functions, output quantities and percents.
         """
-        df = self.df
-        awake = self.awake(df, self.TotalHours())
+        week = date.isocalendar(date.today())[1]
+        total_hours = self.TotalHours()
+        test = self.TestKeys
+        test_type = ('project', 'tag')
 
-        sleep = self.p_time(df, 38)
-        sleep_perc = self.perc(sleep, self.TotalHours())
+        sleep = round(test(test_type[0], 'Shift.Sleep'), 2)
+        sleep_perc = round(sleep * 100 / total_hours, 2)
 
-        tt = self.tt(df, sleep)
-        tt_perc = self.perc(tt, awake[0])
+        awake = round(total_hours - sleep, 2)
 
-        bu_projects = range(19, 25)
-        bu = self.p_time(df, bu_projects)
-        bu_perc = self.perc(bu, awake[0])
+        tt = 0 - sleep
+        for k in self.project_times:
+            tt = tt + self.project_times[k]
+        tt = round(tt, 2)
+        tt_perc = round(tt * 100 / awake, 2)
 
-        opk_projects = range(26, 31)
-        opk = self.p_time(df, opk_projects)
-        opk_perc = self.perc(opk, awake[0])
+        bu = round(test(test_type[0], 'BuildUp.CS') +
+                   test(test_type[0], 'BuildUp.Math') +
+                   test(test_type[0], 'BuildUp.FR') +
+                   test(test_type[0], 'BuildUp.DE') +
+                   test(test_type[0], 'BuildUp.Jap') +
+                   test(test_type[0], 'BuildUp.Others'), 2
+                   )
+        bu_perc = round(bu * 100 / awake, 2)
 
-        qlty = self.qlty(df, bu)
+        bu_hi = round(test(test_type[1], '1-hi') * 100 / bu)
+        bu_mid = round(test(test_type[1], '2-mid') * 100 / bu)
+        bu_lo = round(test(test_type[1], '3-lo') * 100 / bu)
 
-        shared = self.p_time(df, 31)
-        shared_perc = self.perc(shared, awake[0])
+        opk = round(test(test_type[0], 'OpK.Urgoiti.2018') +
+                    test(test_type[0], 'OpK.GoBasquing.2018') +
+                    test(test_type[0], 'OpK.Tourne.2018') +
+                    test(test_type[0], 'OpK.Others.2018') +
+                    test(test_type[0], 'OpK.Tries.2018'), 2
+                    )
+        opk_perc = round(opk * 100 / awake, 2)
+
+        shared = round(test(test_type[0], 'StuffBox.Shared'), 2)
+        shared_perc = round(shared * 100 / awake, 2)
 
         output = (sleep_perc, sleep,
-                  awake[0],
+                  awake,
                   tt_perc, tt,
                   bu_perc, bu,
-                  qlty[0], qlty[1], qlty[2],
+                  bu_hi, bu_mid, bu_lo,
                   opk_perc, opk,
                   shared_perc, shared,
                   )
-        week = date.isocalendar(date.today())[1]
-
-        print(50 * '*', '\n Week #%s progress' % week)
+        print(50 * '*', '\n Week #%s progress (v3)' % week)
         print(' Sleep: %s%% (%sh) \n'
               ' From awake time (%sh): \n'
               '  Time Tracked: %s%% (%sh) \n'
@@ -877,23 +603,13 @@ class Week(object):
 
 
 class Year(object):
-    """Show how it's going the Year."""
+    """Refactor current year by filtering right from the db."""
 
-    def __init__(self, df, filters):
-        """Customize the object."""
-        self.df = df
-        self.filters = filters
-        utils = Utils(filters)
-        self.hours = utils.in_hours
-        self.sum = utils.SumTimes
-        self.perc = utils.Percents
-        self.p_time = utils.ProjectTime
-        self.awake = utils.AwakeTime
-        self.tt = utils.TimeTracked
-        self.bu_goal = utils.BuTarget
-        self.tag = utils.LabelTime
-        self.qlty = utils.Qualitiy
-
+    def __init__(self):
+        db = DataYear()
+        self.tag_times = db.Tags(period='year')
+        self.project_times = db.Project(period='year')
+        self.tag = db.Tags
         self.Output()
 
     def TotalHours(self):
@@ -912,95 +628,128 @@ class Year(object):
 
         Using the commom functions, output quantities and percents.
         """
-        # db & awake.
-        df = self.df
-        awake = self.awake(df, self.TotalHours())
 
-        # Sleep.
-        sleep = self.p_time(df, 38)
-        sleep_perc = self.perc(sleep, self.TotalHours())
+        print(50 * '*', '\n' 'Year progress (V3)')
+        total_hours = self.TotalHours()
+        sleep = round(self.project_times['Shift.Sleep'])
+        sleep_perc = round(sleep * 100 / total_hours, 2)
 
-        # Time Tracked
-        tt = self.tt(df, sleep)
-        tt_perc = self.perc(tt, awake[0])
+        awake = round(total_hours - sleep, 2)
 
-        # BuildUp project Related
-        bu_projects = range(19, 25)
-        bu = self.p_time(df, bu_projects)
-        bu_perc = self.perc(bu, awake[0])
+        tt = 0 - sleep
+        for k in self.project_times:
+            tt = tt + self.project_times[k]
+        tt = round(tt, 2)
+        tt_perc = round(tt * 100 / awake, 2)
 
-        qlty = self.qlty(df, bu)
+        bu = round(self.project_times['BuildUp.CS'] +
+                   self.project_times['BuildUp.Math'] +
+                   self.project_times['BuildUp.FR'] +
+                   self.project_times['BuildUp.DE'] +
+                   self.project_times['BuildUp.Jap'] +
+                   self.project_times['BuildUp.Others'], 2
+                   )
+        bu_perc = round(bu * 100 / awake, 2)
 
-        # BuildUp tag
-        bu_tag = self.tag(df, 'BuildUp')
-        bu_tag_perc = self.perc(bu_tag, awake[0])
-        bu_tag_goal = self.bu_goal(bu_tag, awake[0])
+        bu_hi = round(self.tag_times['1-hi'] * 100 / bu)
+        bu_mid = round(self.tag_times['2-mid'] * 100 / bu)
+        bu_lo = round(self.tag_times['3-lo'] * 100 / bu)
 
-        core = self.tag(df, 'Core')
+        bu_total = round(self.tag_times['BuildUp'], 2)
+        bu_total_perc = round(bu_total * 100 / awake, 2)
+        bu_goal = round(bu_total - (awake * 0.2), 2)
+        if bu_goal >= 0:
+            bu_goal = ('%sh over goal' % bu_goal)
+        else:
+            bu_goal = ('%sh under goal' % abs(bu_goal))
+
+        period = date(2018, 5, 1)
+        bu_may = round(self.tag(period)['BuildUp'])
+        py = round(self.tag_times['python'], 2)
+        py_perc = round(py * 100 / bu_may)
+        web = round(self.tag_times['web'], 2)
+        web_perc = round(web * 100 / bu_may)
+
+        core = round(self.tag_times['Core'], 2)
         week = date.today().isocalendar()[1]
         corerange = (week * 18, week * 20)
 
-        # OpK
-        opk_projects = range(26, 31)
-        opk = self.p_time(df, opk_projects)
-        opk_perc = self.perc(opk, awake[0])
-        opk_tries = self.p_time(df, 28)
-        if opk != 0:
-            opk_ratio = round(opk_tries * 100 / opk, 2)
-        else:
-            opk_ratio = 0
+        opk_tries = self.project_times['OpK.Tries.2018']
+        opk = round(self.project_times['OpK.Urgoiti.2018'] +
+                    self.project_times['OpK.GoBasquing.2018'] +
+                    self.project_times['OpK.Tourne.2018'] +
+                    self.project_times['OpK.Others.2018'] +
+                    opk_tries, 2
+                    )
+        opk_perc = round(opk * 100 / awake, 2)
+        opk_ratio = round(opk_tries * 100 / opk, 2)
 
-        # Shared Time
-        shared = self.p_time(df, 31)
-        shared_perc = self.perc(shared, awake[0])
+        shared = round(self.project_times['StuffBox.Shared'], 2)
+        shared_perc = round(shared * 100 / awake, 2)
 
         output = (sleep_perc, sleep,
-                  awake[0],
+                  awake,
                   tt_perc, tt,
                   bu_perc, bu,
-                  qlty[0], qlty[1], qlty[2],
-                  bu_tag_perc, bu_tag, bu_tag_goal,
+                  bu_hi, bu_mid, bu_lo,
+                  bu_total_perc, bu_total, bu_goal,
+                  py_perc, py, web_perc, web,
                   core, corerange,
                   opk_perc, opk,
                   opk_ratio,
                   shared_perc, shared,
                   )
 
-        print(50 * '*', '\n' 'Year progress')
         print(' Sleep: %s%% (%sh) \n'
               ' From awake time (%sh): \n'
               '  Time Tracked: %s%% (%sh) \n'
               '  Bu Project time: %s%% (%sh) \n'
               '  Bu Qlty: hi, %s%%; mid, %s%%; lo, %s%%  \n'
               '  BuildUp Total: %s%% (%sh) %s \n'
+              '  Python (since may): %s%% (%s); Web: %s%% (%s)\n'
               '  Core Range: %sh %s \n'
               '  Opk Project time: %s%% (%sh) \n'
               '  Opk Ratio (I+D): %s%% \n'
               '  Shared time: %s%% (%sh)'
-              % output)
+              % output
+              )
 
 
 class Graph(object):
     """Show powerful graphs to visualize the year progress."""
 
-    def __init__(self, df, filters):
+    def __init__(self):
         """Customize the object."""
-        self.df = df
-        self.filters = filters
-        bu_ids = range(19, 25)
-        bu = self.PrepareData(df, bu_ids, label='BuildUp')
+        db = DataYear()
+        start = Settings.start_graph
+        day_list = self.DayList()
 
-        opk_ids = range(26, 31)
-        opk = self.PrepareData(df, opk_ids, label='OpK')
+        awake_data = db.AwakeDay(start, day_list)
 
-        shared_id = (31, )
-        shared = self.PrepareData(df, shared_id, label='Shared')
+        # BuildUp data
+        bu_projects = (19, 20, 21, 22, 23, 24)
+        bu_data = db.ProjectDay(start, bu_projects, day_list)
+        bu = self.PrepareData(bu_data, awake_data, 'BildUp')
 
-        bu_tag_id = ('BuildUp',)
-        bu_tag = self.PrepareData(df, bu_tag_id, label='Bu Total')
+        # BuildUp total data
+        bu_tag = 'BuildUp'
+        bu_tag_data = db.TagDay(start, bu_tag, day_list)
+        bu_total = self.PrepareData(bu_tag_data, awake_data, 'BildUp total')
 
-        to_plot = (bu, opk, shared, bu_tag)
-        self.PlotIt(to_plot)
+        # Opk data
+        opk_projects = (26, 27, 28, 29, 30)
+        opk_data = db.ProjectDay(start, opk_projects, day_list)
+        opk = self.PrepareData(opk_data, awake_data, 'Opk')
+
+        shared_projects = (31)
+        shared_data = db.ProjectDay(start, shared_projects, day_list)
+        shared = self.PrepareData(shared_data, awake_data, 'Shared')
+
+        to_plot = (bu, opk, shared, bu_total)
+
+        TrackDB().CleanUp()  # & Clean the tmp folder.
+        if input('Press g to show graph: ') == 'g':
+            self.PlotIt(to_plot)
 
     def DayList(self):
         """Create a list with all the dates since 20-01-2018.
@@ -1017,47 +766,12 @@ class Graph(object):
             start = start + delta
         return result
 
-    def PerDay(self, day_list, data):
-        """List of elapsed time in the activity per day (& could be 0).
-
-        Outputs a list of float values.
-        """
-        result = []
-        count = 0
-        for day in day_list:
-            count += 1
-            have_entry = False
-            lenght = 0
-            for entry in data:
-                # print(day, entry.day, entry.lenght)
-
-                if entry.started == str(day):
-                    count += 1
-                    have_entry = True
-                    if not entry.lenght:
-                        lenght = lenght + 0
-                    else:
-                        lenght = lenght + entry.lenght
-                    # DEBUG: print info
-                    # print(day, entry.started, entry.lenght, entry.name,
-                    #       lenght)
-
-            if have_entry is False:
-                result.append(0)
-                # print(day, 0)  # DEBUG
-            else:
-                result.append(lenght)
-        # print(count, 'loops')  # DEBUG
-        result = [float(i) for i in result]  # convert all items into floats
-
-        # DEBUG: print list
-        # for i in result:
-        #     print(i)
-
-        return result
-
     def Aggregation(self, values):
         """Get the acumulated hours per day. Outputs a list of floats."""
+        if not isinstance(values, list):
+            print(type(values))
+            raise TypeError('Aggregation values should be in a list')
+
         idx = 1
         result = []
         for i in values:
@@ -1067,89 +781,26 @@ class Graph(object):
         # print(result)
         return result
 
-    def AwakeData(self, df):
-        """Get a list of awake hours.
-
-        Awake time is used for calculate the ratio of activities, so it must be
-        calculated once.
-        """
-        sleep = self.filters.ProjectFilter(df, 38)
-        day_list = self.DayList()
-        sleep_per_day = self.PerDay(day_list, sleep)
-        awake_per_day = [(86400 - i) for i in sleep_per_day]  # In seconds
-        agg_awake = self.Aggregation(awake_per_day)
-        return agg_awake
-
-    def PrepareData(self, df, label_id, label):
-        """Transform the original dataframe into a valid data for graph.
-
-        Df is a list of record.Records, they must be transformed into a list of
-        values per day (amount of hours) so graph can understand it. First
-        we'll filter the data to match project (int) or the tag (str), then,
-        we'll get the time per day & the aggregated data as a list of floats.
-
-        Finally, create a dic
-        with the label & the data.
-        """
-        # Label id should be a list
-        if not isinstance(df, list):
-            raise TypeError('Label id should be a list.')
-
-        # Filter the data
-        df_filtered = []
-        for id in label_id:
-            # print('(1041) filtering graph', id)  # DEBUG
-            if isinstance(id, int):
-                filtered = self.filters.ProjectFilter(df, id)
-                if filtered != df:
-                    df_filtered.append(filtered)
-                else:
-                    # DEBUG: print warning
-                    # print('(1046)filter returned the same data, none append')
-                    pass
-            elif isinstance(id, str):
-                filtered = self.filters.LabelFilter(df, id)
-                if filtered != df:
-                    df_filtered.append(filtered)
-                else:
-                    # DEBUG: print warning
-                    # print('(1046)filter returned the same data, none append')
-                    pass
-
-        # Combine into a single tuple so PerDay() can understand
-        combined = []
-        for element in df_filtered:
-            if isinstance(element, list) or isinstance(element, tuple):
-                for item in element:
-                    combined.append(item)
-            else:
-                combined.append(element)
-
-        # Get the data per day
-        # print('(1059) calculate data per day') # DEBUG
-        day_list = self.DayList()
-        data_per_day = self.PerDay(day_list, combined)
-
-        # Get the ratio between awake and the activity
-        awake = self.AwakeData(df)
-
-        # And the acumulated data
-        aggregated = self.Aggregation(data_per_day)
-
-        # awake & aggregated must match
-        if len(awake) != len(aggregated):
+    def Ratio(self, over, under):
+        """Get the ratio between Buildup & awake time per day."""
+        if len(over) != len(under):
+            print(len(over), len(under))
             raise ValueError('awake & aggregated don\'t match')
+        result = []
+        for k in over:
+            idx = over.index(k)
+            # print(idx)
+            r = k * 100 / under[idx]
+            result.append(r)
 
-        data = []
-        for k in aggregated:
-            idx = aggregated.index(k)
-            # print(k, awake[idx])  # DEBUG
-            r = k * 100 / awake[idx]
-            data.append(r)
+        return result
 
-        # Finally, create the dict and return it.
+    def PrepareData(self, data, awake_data, label):
+        agg = self.Aggregation(data)
+        awake_agg = self.Aggregation(awake_data)
+        ratio = self.Ratio(agg[:-1], awake_agg[:-1])
         result = {'label': label,
-                  'data': data}
+                  'data': ratio}
         return result
 
     def PlotIt(self, data):
@@ -1238,21 +889,12 @@ class Menu(object):
 
     def __new__(self):
         """Instantiate the data from db."""
-        db = DataYear()
-        labels = db.Labels()
-        df = db.Year()
-        filters = Filters(labels)
-        df_week = filters.WeekFilter(df)
-        start = Settings.start_graph
-        df_graph = filters.StartFilter(df, start)
+        LastEntries()
+        Week()
+        Year()
+        Graph()
 
-        option = input('Press [y] to perform a quick view (without backup). ')
-        LastEntries(df, filters, days=5)
-        Week(df_week, filters)
-        Year(df, filters)
-        Graph(df_graph, filters)
-        if option != 'y':
+        if input('Press k to backup: ') == 'k':
             Compress()
-
 
 show_menu = Menu()
