@@ -176,6 +176,8 @@ class DataYear(object):
             while start.isocalendar()[2] != 1:  # reduce days until reach mon
                 start = start + delta
             period = '\'' + str(start) + '\''
+        elif isinstance(period, date):
+            period = '\'' + str(period) + '\''
         else:
             print('Warning: period (%s) was not' % period +
                   ' understood using default(year)')
@@ -604,6 +606,7 @@ class Year(object):
         db = DataYear()
         self.tag_times = db.Tags(period='year')
         self.project_times = db.Project(period='year')
+        self.tag = db.Tags
         self.Output()
 
     def TotalHours(self):
@@ -657,6 +660,13 @@ class Year(object):
         else:
             bu_goal = ('%sh under goal' % abs(bu_goal))
 
+        period = date(2018, 5, 1)
+        bu_may = round(self.tag(period)['BuildUp'])
+        py = round(self.tag_times['python'], 2)
+        py_perc = round(py * 100 / bu_may, 3)
+        web = round(self.tag_times['web'], 2)
+        web_perc = round(web * 100 / bu_may, 3)
+
         core = round(self.tag_times['Core'], 2)
         week = date.today().isocalendar()[1]
         corerange = (week * 18, week * 20)
@@ -680,6 +690,7 @@ class Year(object):
                   bu_perc, bu,
                   bu_hi, bu_mid, bu_lo,
                   bu_total_perc, bu_total, bu_goal,
+                  py_perc, py, web_perc, web,
                   core, corerange,
                   opk_perc, opk,
                   opk_ratio,
@@ -692,6 +703,7 @@ class Year(object):
               '  Bu Project time: %s%% (%sh) \n'
               '  Bu Qlty: hi, %s%%; mid, %s%%; lo, %s%%  \n'
               '  BuildUp Total: %s%% (%sh) %s \n'
+              '  Python (since may): %s%% (%s); Web: %s%% (%s)\n'
               '  Core Range: %sh %s \n'
               '  Opk Project time: %s%% (%sh) \n'
               '  Opk Ratio (I+D): %s%% \n'
