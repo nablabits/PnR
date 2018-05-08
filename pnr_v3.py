@@ -663,9 +663,9 @@ class Year(object):
         period = date(2018, 5, 1)
         bu_may = round(self.tag(period)['BuildUp'])
         py = round(self.tag_times['python'], 2)
-        py_perc = round(py * 100 / bu_may, 3)
+        py_perc = round(py * 100 / bu_may)
         web = round(self.tag_times['web'], 2)
-        web_perc = round(web * 100 / bu_may, 3)
+        web_perc = round(web * 100 / bu_may)
 
         core = round(self.tag_times['Core'], 2)
         week = date.today().isocalendar()[1]
@@ -745,7 +745,8 @@ class Graph(object):
         to_plot = (bu, opk, shared, bu_total)
 
         TrackDB().CleanUp()  # & Clean the tmp folder.
-        self.PlotIt(to_plot)
+        if input('Press g to show graph: ') == 'g':
+            self.PlotIt(to_plot)
 
     def DayList(self):
         """Create a list with all the dates since 20-01-2018.
@@ -888,9 +889,8 @@ class Menu(object):
         LastEntries(1)
         Week()
         Year()
+        Graph()
 
-        if input('Press g to show graph: ') == 'g':
-            Graph()
         if input('Press k to backup: ') == 'k':
             Compress()
 
