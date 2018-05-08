@@ -162,7 +162,7 @@ class DataYear(object):
         # The raw query
         df = self.db.query(query)
         # to measure how many times we hit the db
-        print('db hit (last entries)')
+        # print('db hit (last entries)')
         return df
 
     def Period(self, period):
@@ -282,6 +282,7 @@ class DataYear(object):
         sorting = 'GROUP BY date(started) ORDER BY date(started) ASC'
 
         query = field + table + constraint + sorting
+        # print('ProjectDay: db hit')
         data = self.db.query(query)
 
         result = []
@@ -339,6 +340,7 @@ class DataYear(object):
 
         query = field + table + join1 + join2 + constraint + sorting
         data = self.db.query(query)
+        # print('TagDay: db hit')
 
         result = []
 
@@ -387,6 +389,7 @@ class DataYear(object):
 
         query = field + table + constraint + sorting
         data = self.db.query(query)
+        # print('AwakeDay: db hit')
 
         result = []
 
