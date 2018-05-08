@@ -832,13 +832,9 @@ class Compress(object):
 
     def __init__(self):
         """Create the backup from its elements."""
-        proceed = input('Press any key to create the backup(q to exit)')
-        if (proceed != 'q'):
-            self.TarFilize()
-            self.Move()
-            print('Backup successfully completed!')
-        else:
-            print('Process skipped by user, bye')
+        self.TarFilize()
+        self.Move()
+        print('Backup successfully completed!')
 
     def TarFilize(self):
         """Create a backup tarball."""
