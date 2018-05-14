@@ -220,7 +220,10 @@ class DataYear(object):
         tag_dict = {}
         for row in result:
             # print(row.tag, row.lenght) # DEBUG
-            tag_dict[row.tag] = row.lenght / 3600
+            if not row.lenght:  # since ongoing processes have no lenght
+                tag_dict[row.tag] = 0
+            else:
+                tag_dict[row.tag] = row.lenght / 3600
 
         return tag_dict
 
@@ -248,7 +251,10 @@ class DataYear(object):
         project_dict = {}
         for row in result:
             # print(row.tag, row.lenght) # DEBUG
-            project_dict[row.project] = row.lenght / 3600
+            if not row.lenght:  # since ongoing processes have no lenght
+                project_dict[row.project] = 0
+            else:
+                project_dict[row.project] = row.lenght / 3600
 
         return project_dict
 
