@@ -568,9 +568,12 @@ class Week(object):
                    )
         bu_perc = round(bu * 100 / awake, 2)
 
-        bu_hi = round(test(test_type[1], '1-hi') * 100 / bu)
-        bu_mid = round(test(test_type[1], '2-mid') * 100 / bu)
-        bu_lo = round(test(test_type[1], '3-lo') * 100 / bu)
+        if bu != 0:
+            bu_hi = round(test(test_type[1], '1-hi') * 100 / bu)
+            bu_mid = round(test(test_type[1], '2-mid') * 100 / bu)
+            bu_lo = round(test(test_type[1], '3-lo') * 100 / bu)
+        else:
+            bu_hi, bu_mid, bu_lo = 0, 0, 0
 
         opk = round(test(test_type[0], 'OpK.Urgoiti.2018') +
                     test(test_type[0], 'OpK.GoBasquing.2018') +
