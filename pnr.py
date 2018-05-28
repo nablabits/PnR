@@ -634,7 +634,6 @@ class Year(object):
 
     def Output(self):
         """Output the data.
-
         Using the commom functions, output quantities and percents.
         """
 
@@ -659,6 +658,12 @@ class Year(object):
                    self.project_times['BuildUp.Others'], 2
                    )
         bu_perc = round(bu * 100 / awake, 2)
+
+        bu_math = round(self.project_times['BuildUp.Math'])
+        days = date(2018, 1, 1) - date.today()
+        days = abs(days.days)
+        bu_math_goal = days * 400 / 365
+        bu_math_goal = round(bu_math - bu_math_goal, 2)
 
         bu_hi = round(self.tag_times['1-hi'] * 100 / bu)
         bu_mid = round(self.tag_times['2-mid'] * 100 / bu)
@@ -703,6 +708,7 @@ class Year(object):
                   bu_hi, bu_mid, bu_lo,
                   bu_total_perc, bu_total, bu_goal,
                   py_perc, py, web_perc, web,
+                  bu_math_goal,
                   core, corerange,
                   opk_perc, opk,
                   opk_ratio,
@@ -716,6 +722,7 @@ class Year(object):
               '  Bu Qlty: hi, %s%%; mid, %s%%; lo, %s%%  \n'
               '  BuildUp Total: %s%% (%sh) %s \n'
               '  Python (since may): %s%% (%s); Web: %s%% (%s)\n'
+              '  Math goal (400h this year): %sh \n'
               '  Core Range: %sh %s \n'
               '  Opk Project time: %s%% (%sh) \n'
               '  Opk Ratio (I+D): %s%% \n'
