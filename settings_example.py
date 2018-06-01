@@ -8,7 +8,7 @@ class Settings(object):
 
     # Paths
     home = '/home/user/
-    db_file = home + 'Dropbox/Aplicaciones/Swipetimes Time Tracker/'
+    db_file = home + 'path/to/backup/zip/folder'
     backup = ['dir1',
               'dir2/dir3',
               'dir4',
