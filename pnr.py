@@ -742,10 +742,16 @@ class Graph(object):
 
         awake_data = db.AwakeDay(start, day_list)
 
-        # BuildUp data
-        bu_projects = (19, 20, 21, 22, 23, 24)
-        bu_data = db.ProjectDay(start, bu_projects, day_list)
-        bu = self.PrepareData(bu_data, awake_data, 'BildUp')
+        # BuildUp data (Deprecated)
+        # bu_projects = (19, 20, 21, 22, 23, 24)
+        # bu_data = db.ProjectDay(start, bu_projects, day_list)
+        # bu = self.PrepareData(bu_data, awake_data, 'BildUp')
+
+        # Math goal progress
+        math_project = (19)
+        math_data = db.ProjectDay(start, math_project, day_list)
+        goal_data = [(400*3600/(365)) for value in math_data]
+        math = self.PrepareData(math_data, goal_data, 'Math Progress')
 
         # BuildUp total data
         bu_tag = 'BuildUp'
@@ -761,7 +767,7 @@ class Graph(object):
         shared_data = db.ProjectDay(start, shared_projects, day_list)
         shared = self.PrepareData(shared_data, awake_data, 'Shared')
 
-        to_plot = (bu, opk, shared, bu_total)
+        to_plot = (math, opk, shared, bu_total)
 
         TrackDB().CleanUp()  # & Clean the tmp folder.
         if input('Press g to show graph: ') == 'g':
@@ -812,6 +818,7 @@ class Graph(object):
         return result
 
     def PrepareData(self, data, awake_data, label):
+        """Arraange all the data so Plot it can understand."""
         agg = self.Aggregation(data)
         awake_agg = self.Aggregation(awake_data)
         ratio = self.Ratio(agg[:-1], awake_agg[:-1])
@@ -825,21 +832,78 @@ class Graph(object):
         Transforms every item in data (list of floats) into a line in the plot
         and adds the label.
         """
-        # Graph features
-        plt.axhline(y=20, linewidth='2')
-        plt.ylabel('% over time tracked')
-        plt.grid(color='lime', linestyle='-', linewidth='0.5')
+        xvalues = [day for day in range(0, len(data[0]['data']))]  # x-axis val
+        last = -(len(xvalues) - 20)  # first days are quite irregular
+        grid_color = 'silver'
 
-        # fill-in data
-        for row in data:
-            data = row['data']  # y-axis values
-            # print(len(data))  # DEBUG:
-            xvalues = [day for day in range(0, len(data))]  # x-axis values
-            last = -(len(xvalues) - 20)  # first days are quite irregular
-            plt.plot(xvalues[last:], data[last:], label=row['label'])
+        plt.figure(1)
+
+        # math
+        row = data[0]
+        values = row['data']
+        label = row['label']
+        plt.subplot(221)
+        plt.ylabel('% over goal')
+        plt.grid(color=grid_color, linestyle='-', linewidth='0.5')
+        plt.axhline(y=100, linewidth='2')
+        plt.plot(xvalues[last:], values[last:], label=label, color='teal')
+        plt.legend()
+
+        # Buildup
+        row = data[3]
+        values = row['data']
+        label = row['label']
+        plt.subplot(222)
+        plt.ylabel('% over goal')
+        plt.grid(color=grid_color, linestyle='-', linewidth='0.5')
+        plt.axhline(y=20, linewidth='2')
+        plt.plot(xvalues[last:], values[last:], label=label,
+                 color='darkturquoise')
+        plt.legend()
+
+        # plt.figure(2)
+
+        # Opk
+        row = data[1]
+        values = row['data']
+        label = row['label']
+        plt.subplot(223)
+        plt.ylabel('% over goal')
+        plt.grid(color=grid_color, linestyle='-', linewidth='0.5')
+        plt.axhline(y=33, linewidth='2')
+        plt.plot(xvalues[last:], values[last:], label=label, color='limegreen')
+        plt.legend()
+
+        # Shared
+        row = data[2]
+        values = row['data']
+        label = row['label']
+        plt.subplot(224)
+        plt.ylabel('% over goal')
+        plt.grid(color=grid_color, linestyle='-', linewidth='0.5')
+        plt.axhline(y=14, linewidth='2')
+        plt.plot(xvalues[last:], values[last:], label=label,
+                 color='mediumseagreen')
+        plt.legend()
+
+        # Auto Mode
+        # plots = len(data)
+        # plt.figure(1)
+        # plt_idx = 1
+        #
+        #
+        # # fill-in data
+        # for row in data:
+        #     data = row['data']  # y-axis values
+        #     xvalues = [day for day in range(0, len(data))]  # x-axis values
+        #     last = -(len(xvalues) - 20)  # first days are quite irregular
+        #     plt.subplot(plots, 1, plt_idx)
+        #     plt.grid(True)
+        #     plt.plot(xvalues[last:], data[last:], label=row['label'])
+        #     plt.legend()
+        #     plt_idx += 1
 
         # Finally, show the graph
-        plt.legend()
         plt.show()
 
 
