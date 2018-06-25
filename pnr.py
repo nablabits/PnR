@@ -418,6 +418,24 @@ class DataYear(object):
 
         return result
 
+    def QualitySleep(self):
+        """Get the sleep quantity (more than 7h).
+
+        Quality Sleep lasts more than 7h we'll extract the ratio with the total
+        sleep.
+        """
+        query = ("SELECT project_name as 'project', " +
+                 "sum(strftime('%s',stopped)-strftime('%s', started)) as lenght " +
+                 "FROM work " +
+                 "WHERE date(started) >= '2018-01-01' " +
+                 "AND project = 38 " +
+                 "AND strftime('%s',stopped)-strftime('%s', started) > 25200")
+        result = self.db.query(query)
+        sleep_dict = dict()
+        for row in result:
+            sleep_dict[row.project] = row.lenght / 3600
+        return sleep_dict
+
 
 class LastEntries(object):
     """Print last entries for the daily summary."""
@@ -619,6 +637,7 @@ class Year(object):
         self.tag_times = db.Tags(period='year')
         self.project_times = db.Project(period='year')
         self.tag = db.Tags
+        self.sleep_quality = db.QualitySleep()
         self.Output()
 
     def TotalHours(self):
@@ -642,6 +661,8 @@ class Year(object):
         sleep = round(self.project_times['Shift.Sleep'])
         sleep_perc = round(sleep * 100 / total_hours, 2)
         sleep_hours_avg = round(24 * sleep_perc / 100, 2)
+        sleep_quality = self.sleep_quality['Shift.Sleep']
+        sleep_quality = round(sleep_quality * 100 / sleep)
 
         awake = round(total_hours - sleep, 2)
 
@@ -703,6 +724,7 @@ class Year(object):
         shared_perc = round(shared * 100 / awake, 2)
 
         output = (sleep_perc, sleep, sleep_hours_avg,
+                  sleep_quality,
                   awake,
                   tt_perc, tt,
                   bu_perc, bu,
@@ -716,7 +738,7 @@ class Year(object):
                   shared_perc, shared,
                   )
 
-        print(' Sleep: %s%% (%sh / %sh avg) \n'
+        print(' Sleep: %s%% (%sh / %sh avg / +7h, %s%%) \n'
               ' From awake time (%sh): \n'
               '  Time Tracked: %s%% (%sh) \n'
               '  Bu Project time: %s%% (%sh) \n'

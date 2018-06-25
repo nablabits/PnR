@@ -37,3 +37,10 @@ SELECT work.id, tag.name as 'tag'
        WHERE date(started) >= '2018-01-01'
        AND project IN (19)
        group BY date(started)
+
+-- Sum sleep time over 7h
+    SELECT project_name as 'project', sum(strftime('%s',stopped)-strftime('%s', started)) as lenght
+    FROM work
+    WHERE date(started) >= '2018-01-01'
+    AND project = 38
+    AND strftime('%s',stopped)-strftime('%s', started)	> 25200
