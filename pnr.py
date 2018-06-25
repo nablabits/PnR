@@ -857,8 +857,6 @@ class Graph(object):
                  color='darkturquoise')
         plt.legend()
 
-        # plt.figure(2)
-
         # Opk
         row = data[1]
         values = row['data']
@@ -866,7 +864,6 @@ class Graph(object):
         plt.subplot(413)
         plt.ylabel('% over time tracked')
         plt.grid(color=grid_color, linestyle='-', linewidth='0.5')
-        # plt.axhline(y=33, linewidth='2')
         plt.plot(xvalues[last:], values[last:], label=label, color='limegreen')
         plt.legend()
 
@@ -877,27 +874,9 @@ class Graph(object):
         plt.subplot(414)
         plt.ylabel('% over time tracked')
         plt.grid(color=grid_color, linestyle='-', linewidth='0.5')
-        # plt.axhline(y=14, linewidth='2')
         plt.plot(xvalues[last:], values[last:], label=label,
                  color='mediumseagreen')
         plt.legend()
-
-        # Auto Mode
-        # plots = len(data)
-        # plt.figure(1)
-        # plt_idx = 1
-        #
-        #
-        # # fill-in data
-        # for row in data:
-        #     data = row['data']  # y-axis values
-        #     xvalues = [day for day in range(0, len(data))]  # x-axis values
-        #     last = -(len(xvalues) - 20)  # first days are quite irregular
-        #     plt.subplot(plots, 1, plt_idx)
-        #     plt.grid(True)
-        #     plt.plot(xvalues[last:], data[last:], label=row['label'])
-        #     plt.legend()
-        #     plt_idx += 1
 
         # Finally, show the graph
         plt.show()
