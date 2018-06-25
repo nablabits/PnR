@@ -743,11 +743,6 @@ class Graph(object):
 
         awake_data = db.AwakeDay(start, day_list)
 
-        # BuildUp data (Deprecated)
-        # bu_projects = (19, 20, 21, 22, 23, 24)
-        # bu_data = db.ProjectDay(start, bu_projects, day_list)
-        # bu = self.PrepareData(bu_data, awake_data, 'BildUp')
-
         # Math goal progress
         math_project = (19)
         math_data = db.ProjectDay(start, math_project, day_list)
