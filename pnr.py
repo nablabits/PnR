@@ -641,6 +641,7 @@ class Year(object):
         total_hours = self.TotalHours()
         sleep = round(self.project_times['Shift.Sleep'])
         sleep_perc = round(sleep * 100 / total_hours, 2)
+        sleep_hours_avg = round(24 * sleep_perc / 100, 2)
 
         awake = round(total_hours - sleep, 2)
 
@@ -701,7 +702,7 @@ class Year(object):
         shared = round(self.project_times['StuffBox.Shared'], 2)
         shared_perc = round(shared * 100 / awake, 2)
 
-        output = (sleep_perc, sleep,
+        output = (sleep_perc, sleep, sleep_hours_avg,
                   awake,
                   tt_perc, tt,
                   bu_perc, bu,
@@ -715,7 +716,7 @@ class Year(object):
                   shared_perc, shared,
                   )
 
-        print(' Sleep: %s%% (%sh) \n'
+        print(' Sleep: %s%% (%sh / %sh avg) \n'
               ' From awake time (%sh): \n'
               '  Time Tracked: %s%% (%sh) \n'
               '  Bu Project time: %s%% (%sh) \n'
