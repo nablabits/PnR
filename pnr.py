@@ -838,7 +838,7 @@ class Graph(object):
         row = data[0]
         values = row['data']
         label = row['label']
-        plt.subplot(221)
+        plt.subplot(411)
         plt.ylabel('% over goal')
         plt.grid(color=grid_color, linestyle='-', linewidth='0.5')
         plt.axhline(y=100, linewidth='2')
@@ -849,7 +849,7 @@ class Graph(object):
         row = data[3]
         values = row['data']
         label = row['label']
-        plt.subplot(222)
+        plt.subplot(412)
         plt.ylabel('% over time tracked')
         plt.grid(color=grid_color, linestyle='-', linewidth='0.5')
         plt.axhline(y=20, linewidth='2')
@@ -863,7 +863,7 @@ class Graph(object):
         row = data[1]
         values = row['data']
         label = row['label']
-        plt.subplot(223)
+        plt.subplot(413)
         plt.ylabel('% over time tracked')
         plt.grid(color=grid_color, linestyle='-', linewidth='0.5')
         # plt.axhline(y=33, linewidth='2')
@@ -874,7 +874,7 @@ class Graph(object):
         row = data[2]
         values = row['data']
         label = row['label']
-        plt.subplot(224)
+        plt.subplot(414)
         plt.ylabel('% over time tracked')
         plt.grid(color=grid_color, linestyle='-', linewidth='0.5')
         # plt.axhline(y=14, linewidth='2')
