@@ -11,6 +11,7 @@ import records
 from datetime import date, datetime, timedelta, time
 from settings import Settings
 from matplotlib import pyplot as plt
+from sh import pg_dump
 
 
 class TrackDB(object):
@@ -425,8 +426,8 @@ class DataYear(object):
         sleep.
         """
         query = ("SELECT project_name as 'project', " +
-                 "sum(strftime('%s',stopped)-strftime('%s', started)) as lenght " +
-                 "FROM work " +
+                 "sum(strftime('%s',stopped)-strftime('%s', started)) " +
+                 "as lenght FROM work " +
                  "WHERE date(started) >= '2018-01-01' " +
                  "AND project = 38 " +
                  "AND strftime('%s',stopped)-strftime('%s', started) > 25200")
@@ -909,9 +910,22 @@ class Compress(object):
 
     def __init__(self):
         """Create the backup from its elements."""
+        if Settings.PG_BACKUPDB:
+            self.Postgres()
+            print('done')
         self.TarFilize()
         self.Move()
         print('Backup successfully completed!')
+
+    def Postgres(self):
+        """Create a backup from the tables defined on settings."""
+        s = Settings
+        os.putenv('PGPASSWORD', s.PG_PASS)
+        os.chdir(s.home)
+        for db in s.PG_DATABASES:
+            filename = db + '_backup.sql'
+            with open(filename, 'w') as f:
+                pg_dump('-h', s.PG_HOST, '-U', s.PG_USER, db, _out=f)
 
     def TarFilize(self):
         """Create a backup tarball."""
@@ -926,10 +940,17 @@ class Compress(object):
         tar = tarfile.open(name, 'w:gz')
         file_list = (Settings.backup)
 
-        for i in file_list:
-            checkfile = os.path.isdir(i)
-            if checkfile is True:
-                tar.add(i)
+        # for i in file_list:
+        #     checkfile = os.path.isdir(i)
+        #     if checkfile is True:
+        #         tar.add(i)
+
+        # Look for all the db backups (.sql) in the dir & move'em
+        for line in os.listdir(Settings.home):
+            if re.search(r'.sql', line):
+                print(line, '-> !file found, adding...')
+                tar.add(line)
+                print('Added ok.')
         tar.close
         input('Tarball created ok!, insert an usb stick & hit any key')
 
@@ -970,4 +991,5 @@ class Menu(object):
         if input('Press k to backup: ') == 'k':
             Compress()
 
-show_menu = Menu()
+if __name__ == '__main__':
+    show_menu = Menu()

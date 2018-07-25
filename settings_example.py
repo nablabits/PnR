@@ -19,3 +19,10 @@ class Settings(object):
 
     # Graph start date
     start_graph = date(2018, 1, 1)
+
+    # Postgres db settings
+    PG_BACKUPDB = True
+    PG_USER = 'postgres'
+    PG_PASS = 'ourpassword'
+    PG_HOST = 'localhost'
+    PG_DATABASES = ['db1', 'db2', ]
