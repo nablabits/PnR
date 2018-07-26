@@ -107,72 +107,50 @@ class TestData(unittest.TestCase):
     def test_invalid_period_outputs_jan_first(self):
         period_fn = self.df.Period(period='invalid period')
         self.assertEqual(period_fn, '\'2018-01-01\'')
-#
-#     def test_year_outputs_this_year_2018_data(self):
-#         """Year() should output entries of year 2018."""
-#         for item in self.year_data:
-#             started = datetime.strptime(item.started, '%Y-%m-%d')
-#             limit = date(2018, 1, 1)
-#             off_bounds = False
-#             if started.date() < limit:
-#                 off_bounds = True
-#                 break
-#         self.assertFalse(off_bounds)
-#
-#     def test_year_integers(self):
-#         """Year() id, project & lenght should output integers."""
-#         idisint, projectisint, lenghtisint = True, True, True
-#         for entry in self.year_data:
-#             if not isinstance(entry.id, int):
-#                 idisint = False
-#             if not isinstance(entry.project, int):
-#                 projectisint = False
-#             if not isinstance(entry.lenght, int):
-#                 # since unfinished entries have no lenght, exclude this case
-#                 if entry.lenght is not None:
-#                     lenghtisint = False
-#
-#         self.assertTrue(idisint)
-#         self.assertTrue(projectisint)
-#         self.assertTrue(lenghtisint)
-#
-#     def test_year_strings(self):
-#         """Year().name, started & stopped should output strings."""
-#         name, started, hour, stopped = True, True, True, True
-#         for entry in self.year_data:
-#             if not isinstance(entry.name, str):
-#                 # Deleted entries are left in the db without name.
-#                 if entry.name is not None:
-#                     name = False
-#             if not isinstance(entry.started, str):
-#                 started = False
-#             if not isinstance(entry.hour, str):
-#                 hour = False
-#             if not isinstance(entry.stopped, str):
-#                 # since unfinished entries have no stop time, exclude this case
-#                 if entry.stopped is not None:
-#                     stopped = False
-#
-#         self.assertTrue(name)
-#         self.assertTrue(started)
-#         self.assertTrue(hour)
-#         self.assertTrue(stopped)
-#
-#     def test_label_outputs_a_RecordCollection(self):
-#         """Labels() must output a class RecordCollection."""
-#         self.assertIsInstance(self.labels, records.RecordCollection)
-#
-#     def test_label_fields(self):
-#         """Id should be int while tag should be str."""
-#         id, tag = True, True
-#         for entry in self.labels:
-#             if not isinstance(entry.id, int):
-#                 id = False
-#             if not isinstance(entry.tag, str):
-#                 tag = False
-#         self.assertTrue(id)
-#         self.assertTrue(tag)
-#
+
+    def test_tags_outputs_a_dict_element(self):
+        tags = self.df.Tags(period='year')
+        self.assertIsInstance(tags, dict)
+
+    def test_tags_dict_keys_are_strings(self):
+        tags = self.df.Tags(period='year')
+        for i in tags:
+            self.assertIsInstance(i, str)
+
+    def test_tags_dict_values_are_floats(self):
+        tags = self.df.Tags(period='year')
+        for i in tags:
+            self.assertIsInstance(tags[i], float)
+
+    def test_tags_dict_values_are_positive(self):
+        tags = self.df.Tags(period='year')
+        for i in tags:
+            self.assertGreaterEqual(tags[i], 0)
+
+    def test_project_outputs_a_dict_element(self):
+        projects = self.df.Project(period='year')
+        self.assertIsInstance(projects, dict)
+
+    def test_project_dict_keys_are_strings(self):
+        projects = self.df.Project(period='year')
+        for i in projects:
+            self.assertIsInstance(i, str)
+
+    def test_project_dict_values_are_floats(self):
+        projects = self.df.Project(period='year')
+        for i in projects:
+            self.assertIsInstance(projects[i], float)
+
+    def test_project_dict_values_are_positive(self):
+        projects = self.df.Project(period='year')
+        for i in projects:
+            self.assertGreaterEqual(projects[i], 0)
+
+    def test_projectday_returns_a_list(self):
+        start = date(2018, 1, 1)
+        daylist = pnr.Graph.DayList()
+        project_day = self.df.ProjectDay(start, 38, daylist)
+        self.assertIsInstance(project_day, list)
 
 # class TestFilters(unittest.TestCase):
 #     """Test the filters for the data extacted."""

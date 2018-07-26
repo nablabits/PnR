@@ -229,6 +229,10 @@ class DataYear(object):
         return tag_dict
 
     def Project(self, period):
+        """Query the db to get project times.
+
+        Returns a dict with project:lenght pairs.
+        """
         # first check if Period is valid
         period = self.Period(period)
 
@@ -911,8 +915,8 @@ class Compress(object):
     def __init__(self):
         """Create the backup from its elements."""
         if Settings.PG_BACKUPDB:
+            print('Backup postgres...')
             self.Postgres()
-            print('done')
         self.TarFilize()
         self.Move()
         print('Backup successfully completed!')
@@ -938,12 +942,22 @@ class Compress(object):
         # Now, create the file
         os.chdir(Settings.home)
         tar = tarfile.open(name, 'w:gz')
-        file_list = (Settings.backup)
+        folder_list = (Settings.BACKUP_FOLDERS)
+        file_list = (Settings.BACKUP_FILES)
 
-        # for i in file_list:
-        #     checkfile = os.path.isdir(i)
-        #     if checkfile is True:
-        #         tar.add(i)
+        for i in folder_list:
+            checkfolder = os.path.isdir(i)
+            if checkfolder is True:
+                tar.add(i)
+            else:
+                print('Warning: folder %s doesn\'t exist, skipping...' % i)
+
+        for i in file_list:
+            checkfile = os.path.isfile(i)
+            if checkfile is True:
+                tar.add(i)
+            else:
+                print('Warning: file %s doesn\'t exist, skipping...' % i)
 
         # Look for all the db backups (.sql) in the dir & move'em
         for line in os.listdir(Settings.home):
@@ -951,7 +965,9 @@ class Compress(object):
                 print(line, '-> !file found, adding...')
                 tar.add(line)
                 print('Added ok.')
-        tar.close
+                os.remove(line)
+
+        tar.close()
         input('Tarball created ok!, insert an usb stick & hit any key')
 
     def Move(self):
