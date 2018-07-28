@@ -8,10 +8,16 @@ from datetime import date, datetime, timedelta
 class TestOrigins(unittest.TestCase):
     """Test the file and the db."""
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """Get the test working."""
-        self.df = pnr.TrackDB()
-        self.path = self.df.GetPath()
+        cls.df = pnr.TrackDB()
+        cls.path = cls.df.GetPath()
+
+    @classmethod
+    def tearDownClass(cls):
+        tdb = pnr.TrackDB()
+        tdb.CleanUp()
 
     def test_path_exists(self):
         """Getpath returns a valid path."""
@@ -69,9 +75,15 @@ class TestOrigins(unittest.TestCase):
 class TestData(unittest.TestCase):
     """Test the data from the db."""
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """Get the test working."""
-        self.df = pnr.DataYear()
+        cls.df = pnr.DataYear()
+
+    @classmethod
+    def tearDownClass(cls):
+        tdb = pnr.TrackDB()
+        tdb.CleanUp()
 
     def test_last_entries_outputs_a_RecordCollection(self):
         """LastEntriesQuery() must output a class RecordCollection."""
@@ -148,9 +160,35 @@ class TestData(unittest.TestCase):
 
     def test_projectday_returns_a_list(self):
         start = date(2018, 1, 1)
-        daylist = pnr.Graph.DayList()
+        graph = pnr.Graph()
+        daylist = graph.DayList()
         project_day = self.df.ProjectDay(start, 38, daylist)
         self.assertIsInstance(project_day, list)
+
+    def test_projectday_items_are_integers(self):
+        start = date(2018, 1, 1)
+        graph = pnr.Graph()
+        daylist = graph.DayList()
+        project_day = self.df.ProjectDay(start, 38, daylist)
+        for item in project_day:
+            self.assertIsInstance(item, int)
+
+    def test_projectday_raises_error_on_wrong_date(self):
+        start = 'date'
+        graph = pnr.Graph()
+        daylist = graph.DayList()
+        with self.assertRaises(TypeError):
+            project_day = self.df.ProjectDay(start, 500, daylist)
+
+    def test_projectday_raises_error_on_wrong_project_id(self):
+        start = date(2018, 1, 1)
+        graph = pnr.Graph()
+        daylist = graph.DayList()
+        with self.assertRaises(TypeError):
+            project_day = self.df.ProjectDay(start, '38', daylist)
+        with self.assertRaises(TypeError):
+            project_day = self.df.ProjectDay(start, ('38', 12, 'abc'), daylist)
+
 
 # class TestFilters(unittest.TestCase):
 #     """Test the filters for the data extacted."""

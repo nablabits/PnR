@@ -281,7 +281,11 @@ class DataYear(object):
             if not isinstance(project, tuple):
                 raise TypeError('Project should be a list of int or int')
             else:
-                project = str(project)
+                for i in project:
+                    if not isinstance(i, int):
+                        raise TypeError('Project should be a list of int')
+                    else:
+                        project = str(project)
         else:
             project = '(%s)' % project
 
@@ -311,13 +315,6 @@ class DataYear(object):
                 result.append(0)
                 # print('date %s not found, adding 0' % day)  # DEBUG
 
-        if not result:
-            print('Warning: query (%s, %s) gave no result, is it written ok?'
-                  % (project, start))
-
-        # DEBUG
-        # for row in result:
-        #     print(row)
 
         return result
 
@@ -448,7 +445,6 @@ class LastEntries(object):
     def __init__(self):
         """Customize the object."""
         self.days = Settings.last_entries_days
-        self.Output()
 
     def DateList(self):
         """Create a list with the dates to be shown.
@@ -522,8 +518,6 @@ class Week(object):
         db = DataYear()
         self.tag_times = db.Tags(period='week')
         self.project_times = db.Project(period='week')
-
-        self.Output()
 
     def TotalHours(self):
         """Calculate the elapsed hours in the week.
@@ -643,7 +637,6 @@ class Year(object):
         self.project_times = db.Project(period='year')
         self.tag = db.Tags
         self.sleep_quality = db.QualitySleep()
-        self.Output()
 
     def TotalHours(self):
         """Calculate the elapsed hours in the Year.
@@ -762,7 +755,7 @@ class Year(object):
 class Graph(object):
     """Show powerful graphs to visualize the year progress."""
 
-    def __init__(self):
+    def Output(self):
         """Customize the object."""
         db = DataYear()
         start = Settings.start_graph
@@ -912,7 +905,7 @@ class Graph(object):
 class Compress(object):
     """Compress and move to the backup folder."""
 
-    def __init__(self):
+    def Output(self):
         """Create the backup from its elements."""
         if Settings.PG_BACKUPDB:
             print('Backup postgres...')
@@ -999,13 +992,19 @@ class Menu(object):
 
     def __new__(self):
         """Instantiate the data from db."""
-        LastEntries()
-        Week()
-        Year()
-        Graph()
+        last_entries = LastEntries()
+        week = Week()
+        year = Year()
+        graph = Graph()
+
+        last_entries.Output()
+        week.Output()
+        year.Output()
+        graph.Output()
 
         if input('Press k to backup: ') == 'k':
-            Compress()
+            compress = Compress()
+            compress.Output()
 
 if __name__ == '__main__':
     show_menu = Menu()
