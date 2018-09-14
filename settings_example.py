@@ -17,6 +17,8 @@ class Settings(object):
                     'path/to/file2',
                     ]
 
+    BACKUP_TARGET = 'path/to/backup/dir'
+
     # Days to show on last entries summary
     last_entries_days = 3
 

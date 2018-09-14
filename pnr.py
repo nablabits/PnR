@@ -966,7 +966,7 @@ class Compress(object):
     def Move(self):
         """Move the backup tarball to the aux device."""
         org = Settings.home
-        dst = '/media/davif/backup/'  # USB stick should mount auto here
+        dst = Settings.BACKUP_TARGET
 
         checkdir = os.path.isdir(dst)
         while not checkdir:
